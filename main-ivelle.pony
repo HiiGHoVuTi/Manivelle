@@ -1,6 +1,8 @@
 
 use "cli"
 
+use @printf[I32](fmt: Pointer[U8] tag, ...)
+
 class val Config
 
   let desc: String =
@@ -9,7 +11,8 @@ class val Config
 
   new val create(env: Env)? =>
     let cs = CommandSpec.parent("manivelle", desc, [
-
+    OptionSpec.bool("verbose", "whether to log progress"
+    where default' = false, short' = 'V')
     ], [
 
       CommandSpec.leaf("init", "inits manivelle scripts", [], [])?
@@ -39,6 +42,7 @@ actor Main
   let _app_name: String = "manivelle"
 
   new create(env': Env) =>
+
     let cnf = try Config(env')?
       else env'.out.print("Internal error") ; return end
     let cmd = match cnf.cmd

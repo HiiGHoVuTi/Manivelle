@@ -1,6 +1,11 @@
 {
   "packages": [],
-  "deps": [],
+  "deps": [
+    {
+      "locator": "github.com/ponylang/appdirs.git",
+      "version": "0.1.4"
+    }
+  ],
   "info": {
     "description": "",
     "homepage": "",

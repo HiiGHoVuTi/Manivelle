@@ -15,3 +15,52 @@ actor FileUtil
     let file1 = try dir1.open_file(name)?   else return end
 
     file2.write(file1.read(1_000_000_000))
+
+class CopyWorker
+
+  let auth: AmbientAuth
+  let repo_name: String
+  let start_path: String
+  let base_dir: String
+  let util: FileUtil
+
+  let verbose: Bool
+
+  new create(repo_name': String,
+  current_dir': String,
+  start_path': String,
+  auth': AmbientAuth,
+  verbose': Bool = false) =>
+
+    auth = auth'
+    repo_name  = repo_name'
+    start_path = start_path'
+    base_dir   = current_dir'
+    util       = FileUtil(auth')
+    verbose    = verbose'
+
+    work()
+
+  fun get_dirs(): (Directory val, Directory val)? =>
+    let original = recover val
+      Directory(FilePath(auth, base_dir  + "/" + start_path)?)? end
+    let target   = recover val
+      Directory(FilePath(auth, repo_name + "/" + start_path)?)? end
+    (original, target)
+
+  fun work() =>
+    let directories = try get_dirs()?
+    else return end
+
+    for entry in try directories._1.entries()?.values() else return end do
+
+      let info = try directories._1.infoat(entry)? else continue end
+      if info.file then
+        util.copy(entry, directories._1, directories._2)
+        if verbose then
+          @printf(("Copying " + start_path + entry + "..\n").cstring())
+        end
+      else
+        CopyWorker(repo_name, base_dir, start_path + entry, auth, verbose)
+      end
+    end

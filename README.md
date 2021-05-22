@@ -27,7 +27,8 @@ Options:
 
 Commands:
    help <command>        
-   save <path> <name>    saves the current folder
-   init                  inits manivelle script
+   save <path> <name>    saves a given folder
+   init                  inits manivelle scripts (not there yet)
+   load <name>           loads a configuration
 ```
 

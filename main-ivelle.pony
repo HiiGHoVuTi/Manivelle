@@ -11,16 +11,24 @@ class val Config
 
   new val create(env: Env)? =>
     let cs = CommandSpec.parent("manivelle", desc, [
+
     OptionSpec.bool("verbose", "whether to log progress"
     where default' = false, short' = 'V')
+
     ], [
 
-      CommandSpec.leaf("init", "inits manivelle scripts", [], [])?
+      CommandSpec.leaf("init", "inits manivelle scripts (not there yet)", [], [])?
 
-      CommandSpec.leaf("save", "saves the current folder", [
+      CommandSpec.leaf("save", "saves a given folder", [
 
       ], [
         ArgSpec.string("path", "path to save")
+        ArgSpec.string("name", "name of the configuration")
+      ])?
+
+      CommandSpec.leaf("load", "loads a configuration", [
+
+      ], [
         ArgSpec.string("name", "name of the configuration")
       ])?
 
@@ -39,8 +47,6 @@ class val Config
 
 actor Main
 
-  let _app_name: String = "manivelle"
-
   new create(env': Env) =>
 
     let cnf = try Config(env')?
@@ -53,5 +59,8 @@ actor Main
     end
 
     match cmd.fullname()
-    | (_app_name + "/save") => Save(env', cmd)
+    | (RepoManager.app_name + "/save") => Save(env', cmd)
+    | (RepoManager.app_name + "/load") => Load(env', cmd)
+    else
+      env'.out.print(cmd.fullname())
     end

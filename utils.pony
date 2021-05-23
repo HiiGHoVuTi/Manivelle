@@ -61,6 +61,8 @@ class CopyWorker
           @printf(("Copying " + start_path + entry + "..\n").cstring())
         end
       else
-        CopyWorker(repo_name, base_dir, start_path + entry, auth, verbose)
+        if directories._2.mkdir(entry) then
+          CopyWorker(repo_name, base_dir, start_path + entry, auth, verbose)
+        end
       end
     end

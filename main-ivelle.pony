@@ -17,6 +17,15 @@ class val Config
 
     ], [
 
+      CommandSpec.leaf("install", "installs manivelle in the home directory (not there yet)", [
+
+        OptionSpec.string("as", "the name manivelle will go by"
+        where default' = "velle", short' = 'a')
+
+      ], [
+
+      ])?
+
       CommandSpec.leaf("init", "inits manivelle scripts (not there yet)", [], [])?
 
       CommandSpec.leaf("save", "saves a given folder", [
@@ -61,6 +70,7 @@ actor Main
     match cmd.fullname()
     | (RepoManager.app_name + "/save") => Save(env', cmd)
     | (RepoManager.app_name + "/load") => Load(env', cmd)
+    | (RepoManager.app_name + "/install") => Install(env', cmd)
     else
       env'.out.print(cmd.fullname())
     end

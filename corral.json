@@ -2,6 +2,10 @@
   "packages": [],
   "deps": [
     {
+      "locator": "github.com/ponylang/peg.git",
+      "version": "0.1.1"
+    },
+    {
       "locator": "github.com/ponylang/appdirs.git",
       "version": "0.1.4"
     }

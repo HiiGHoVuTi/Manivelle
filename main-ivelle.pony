@@ -30,7 +30,25 @@ class val Config
 
       ])?
 
-      CommandSpec.leaf("init", "inits manivelle scripts (not there yet)", [], [])?
+      CommandSpec.parent("script", "manivelle script utility", [
+
+      ], [
+
+        CommandSpec.leaf("init", "inits scripts folder", [
+
+        ], [
+
+        ])?
+
+        CommandSpec.leaf("create", "creates scripts", [
+
+        ], [
+
+          ArgSpec.string_seq("names", "names of the scripts")
+
+        ])?
+
+      ])?
 
       CommandSpec.leaf("save", "saves a given folder", [
 
@@ -75,6 +93,8 @@ actor Main
     | (RepoManager.app_name + "/save") => Save(env', cmd)
     | (RepoManager.app_name + "/load") => Load(env', cmd)
     | (RepoManager.app_name + "/install") => Install(env', cmd)
+    | (RepoManager.app_name + "/script/init") => CreateScriptsFolder(env', cmd)
+    | (RepoManager.app_name + "/script/create") => CreateScripts(env', cmd)
     else
       env'.out.print(cmd.fullname())
     end

@@ -40,9 +40,50 @@ Options:
    -V, --verbose=false    whether to log progress
 
 Commands:
+   script                manivelle script utility
+     create <names>        creates scripts
+     run <names>           runs scripts
+     init                  inits scripts folder
    help <command>        
    save <path> <name>    saves a given folder
-   init                  inits manivelle scripts (not there yet)
    load <name>           loads a configuration
+   install               installs manivelle in the repo directory
+```
+
+## Scripts
+
+So maybe you want to spice up your configurations with scripts. Lucky for you, villang exists for you. Here's a quick rundown.
+
+``` shell
+$ velle script init -V
+Created .velle/
+$ velle script create my_script
+```
+
+These two commands will let you create the proper folder and scripts for velle. You'll also see a `_init.vl`, it is the default script. Vellang, or velle-lisp is a simple language to let you interact with the user's machine without worrying too much. Here are the implemented functions:
+
+``` lisp
+( ; a program always is enclosed in brackets
+
+(echo Hello World !) ; if provided multiple Words, echo will join them with a space
+
+(echo
+    (string Hello)
+    (string World !))
+    
+(sys
+    (string touch file.txt)
+    (string echo Hello world > file.txt)) ; every argument is a single string that will be executed by the users' system
+    
+(import
+    (string other-module.vl)) ; runs another .vl file in the .velle folder
+
+)
+```
+
+Now you can run the scripts:
+
+``` shell
+$ velle script run _init
 ```
 

@@ -1,5 +1,4 @@
 
-
 use "cli"
 use "files"
 use "appdirs"
@@ -39,6 +38,8 @@ class Load
     else
       env.out.print("Couldn't load the repository.")
     end
+
+    // Run _init.vl
 
   fun load_repo(repo_path: String)? =>
     let worker = CopyWorker(".", repo_path, "",

@@ -15,7 +15,7 @@ class CreateScriptsFolder
 
     try
       Directory(FilePath(env'.root as AmbientAuth, ".")?)?
-        .> mkdir(".velle")
+        .> mkdir(".velle") .> create_file(".velle/_init.vl")?
       if verbose then
         @printf("Created .velle/\n".cstring())
       end
@@ -34,7 +34,11 @@ class CreateScripts
     verbose   = cmd'.option("verbose").bool()
     filenames = cmd'.arg("names").string_seq()
 
-    CreateScriptsFolder(env', cmd')
+    try
+      Directory(FilePath(env'.root as AmbientAuth, "./velle")?)?
+    else
+      CreateScriptsFolder(env', cmd')
+    end
 
     try
       let dir = Directory(FilePath(env'.root as AmbientAuth, "./.velle")?)?

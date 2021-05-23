@@ -48,19 +48,31 @@ class val Config
 
         ])?
 
+        CommandSpec.leaf("run", "runs scripts", [
+
+        ], [
+
+          ArgSpec.string_seq("names", "names of the scripts")
+
+        ])?
+
       ])?
 
       CommandSpec.leaf("save", "saves a given folder", [
 
       ], [
+
         ArgSpec.string("path", "path to save")
         ArgSpec.string("name", "name of the configuration")
+
       ])?
 
       CommandSpec.leaf("load", "loads a configuration", [
 
       ], [
+
         ArgSpec.string("name", "name of the configuration")
+
       ])?
 
     ])? .> add_help()?
@@ -95,6 +107,7 @@ actor Main
     | (RepoManager.app_name + "/install") => Install(env', cmd)
     | (RepoManager.app_name + "/script/init") => CreateScriptsFolder(env', cmd)
     | (RepoManager.app_name + "/script/create") => CreateScripts(env', cmd)
+    | (RepoManager.app_name + "/script/run") => VellangLauncher(env', cmd)
     else
       env'.out.print(cmd.fullname())
     end

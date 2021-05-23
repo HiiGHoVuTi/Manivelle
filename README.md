@@ -73,10 +73,10 @@ These two commands will let you create the proper folder and scripts for velle. 
     
 (sys
     (string touch file.txt)
-    (string echo Hello world > file.txt)) ; every argument is a single string that will be executed by the users' system
+    (string echo "Hello world" > file.txt)) ; every argument is a single string that will be executed by the users' system
     
 (import
-    (string other-module.vl)) ; runs another .vl file in the .velle folder
+    (string other-module)) ; runs another .vl file in the .velle folder
 
 )
 ```

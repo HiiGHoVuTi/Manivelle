@@ -108,11 +108,15 @@ type CollapsedFunction is {(Array[peg.ASTChild], Array[Variable]): Variable}
 
 actor VellangRunner
 
+  let default: CollapsedFunction box = {(a: Array[peg.ASTChild], b: Array[Variable]) => None}box
+
   let std_lib: Map[String, CollapsedFunction box] = std_lib.create()
     .> update("sys",    VellangStd~system())
     .> update("import", VellangStd~import())
     .> update("echo",   VellangStd~echo())
-    .> update("string", VellangStd~string())
+    .> update("string", VellangStd~string()) .> update("s:", VellangStd~string())
+
+    .> update("alias", default)
 
   let variables: Map[String, Variable] = variables.create()
 
@@ -128,7 +132,6 @@ actor VellangRunner
     end
 
   fun get_op(ast: peg.AST): CollapsedFunction box =>
-    let default = {(a: Array[peg.ASTChild], b: Array[Variable]) => None}box
 
 
     match ast.extract()
@@ -158,7 +161,7 @@ actor VellangRunner
 
     do_seq(main_expr)
 
-  fun do_seq(ast: peg.AST) =>
+  fun ref do_seq(ast: peg.AST) =>
     for term in ast.children.values() do
       match term
       | let tree: peg.AST   => eval_sync(tree)
@@ -174,16 +177,19 @@ actor VellangRunner
       s
     end
 
-  fun eval_sync(ast: peg.AST): Variable =>
+  // refactor for lazy
+  fun ref eval_sync(ast: peg.AST): Variable =>
 
     let expr = match get_expr(ast)
     | let tree: peg.AST => tree
     else return end
 
+    eval_meta(expr, expr.children.slice(1), eval_args(expr.children.slice(1)))
+
     let op = get_op(expr)
     op(expr.children.slice(1), eval_args(expr.children.slice(1)))
 
-  fun eval_args(args: Array[peg.ASTChild]): Array[Variable] =>
+  fun ref eval_args(args: Array[peg.ASTChild]): Array[Variable] =>
     let out = Array[Variable](args.size())
     for arg in args.values() do
       out.push(
@@ -196,3 +202,18 @@ actor VellangRunner
       )
     end
     out
+
+  fun ref eval_meta(ast: peg.AST, pass': Array[peg.ASTChild], args: Array[Variable]) =>
+    match ast.extract()
+    | let tree: peg.AST =>
+      None
+    | let tok: peg.Token =>
+      if tok.string() == "alias" then try
+
+        let orig = match args(0)? | let s: String => s else return end
+        let targ = match args(1)? | let s: String => s else return end
+
+        let cmd = std_lib(orig)?
+        std_lib.update(targ, cmd)
+      end end
+    end

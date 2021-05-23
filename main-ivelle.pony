@@ -2,6 +2,7 @@
 use "cli"
 
 use @printf[I32](fmt: Pointer[U8] tag, ...)
+use @system[I32](fmt: Pointer[U8] tag)
 
 class val Config
 
@@ -17,10 +18,13 @@ class val Config
 
     ], [
 
-      CommandSpec.leaf("install", "installs manivelle in the home directory (not there yet)", [
+      CommandSpec.leaf("install", "installs manivelle in the repo directory", [
 
         OptionSpec.string("as", "the name manivelle will go by"
         where default' = "velle", short' = 'a')
+
+        OptionSpec.string("to", "the folder to install in (prefer PATH folders)"
+        where default' = "/usr/bin")
 
       ], [
 

@@ -8,13 +8,19 @@ actor FileUtil
   new create(auth': AmbientAuth) =>
     auth = auth'
 
-  be copy(name: String, dir1: Directory val, dir2: Directory val) =>
+  be copy(name: String, dir1: Directory val, dir2: Directory val,
+    other_name: String = "", callback: {(File)}val = {(a: File) => None}val
+  ) =>
 
-    let file2 = try dir2.create_file(name)? else return end
+    let saved_name = if other_name == "" then name else other_name end
 
-    let file1 = try dir1.open_file(name)?   else return end
+    let file2 = try dir2.create_file(saved_name)?  else return end
+
+    let file1 = try dir1.open_file(name)?          else return end
 
     file2.write(file1.read(1_000_000_000))
+
+    callback(consume file2)
 
 class CopyWorker
 
@@ -58,7 +64,7 @@ class CopyWorker
       if info.file then
         util.copy(entry, directories._1, directories._2)
         if verbose then
-          @printf(("Copying " + start_path + entry + "..\n").cstring())
+          @printf(("Copying " + start_path + "/" + entry + "..\n").cstring())
         end
       else
         if directories._2.mkdir(entry) then

@@ -6,26 +6,42 @@ use "appdirs"
 class Install
 
   let env: Env
-  let path_string: String
-  let config_name: String
+  let dest: String
+  let alias: String
 
   let verbose: Bool
 
 
   new create(env': Env, cmd': Command) =>
     env = env'
-    path_string = cmd'.arg("path").string()
-    config_name = cmd'.arg("name").string()
+    dest        = cmd'.option("to").string()
+    alias       = cmd'.option("as").string()
     verbose     = cmd'.option("verbose").bool()
-    let util    = try FileUtil(env'.root as AmbientAuth)? else return end
 
-    let app_dirs = AppDirs(env.vars, cmd'.fullname())
+    let util     = try FileUtil(env'.root as AmbientAuth)? else return end
 
-    let unique_path = try RepoManager.get_unique_path(
-        cmd', app_dirs.user_config_dir()?)
-    else
-      env.out.print("Can't locate data folder.")
-      return
+    if verbose then
+      env.out.print("Trying to save to " + dest)
+      env.out.print("Make sure you are able to write to that directory...")
     end
+    copy_source(util)
 
-    env.out.print(unique_path)
+  fun get_dirs(): (Directory val, Directory val)? =>
+    let auth = (env.root as AmbientAuth)
+
+    let original = recover val
+      Directory(FilePath(auth, ".")?)? end
+    let target   = recover val
+      Directory(FilePath(auth, dest)?)? end
+    (original, target)
+
+  fun copy_source(util: FileUtil) =>
+    let folders = try get_dirs()? else return end
+
+    let callback = {(f: File) => f.chmod(FileMode .> exec())}val
+
+    util.copy("Manivelle", folders._1, folders._2
+    where other_name = alias, callback = callback)
+
+    util.copy("Manivelle.exe", folders._1, folders._2
+    where other_name = alias, callback = callback)

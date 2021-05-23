@@ -3,11 +3,25 @@
 Manivelle (or hand crank) is a tool for saving and loading your boilerplate. This includes files and folder structures that are always identical, but also scripts you run, and all sorts of magix.
 
 ## Installation
-You can simply compile Manivelle using ponyc / corral and put it into your path.
-Another option (not implemented yet) is to run this command.
+
+To install manivelle, you'll need to use [Pony's](https://github.com/ponylang/ponyup) tools. Don't worry, they're great.
+
+If you have them already, skip to the install command.
 
 ``` shell
-$ corral run -- ponyc && ./Manivelle install --as velle
+$ sh -c "$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)"
+
+$ ponyup update ponyc release
+
+$ ponyup update corral release
+```
+
+Then you can compile and install (as root) Manivelle !
+
+``` shell
+$ corral run -- ponyc
+
+$ sudo ./Manivelle install --as velle --to /usr/bin 
 ```
 This should install manivelle as `velle` on your system.
 

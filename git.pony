@@ -37,6 +37,7 @@ class Pull
     Directory(FilePath(
       env.root as AmbientAuth, unique_path + RepoManager.app_name)?)?
     .> mkdir(alias)
+    .> remove(alias + ".zip")
 
   fun clone(unique_path: String) =>
     try make_local(unique_path)? else return end
@@ -53,4 +54,13 @@ class Pull
       .> append(dest)
       .> append(".git")
     end
+
     @system(("git clone " + url + " " + target_path).cstring())
+
+    ZipWorker(recover val
+      String
+        .> append(unique_path)
+        .> append(RepoManager.app_name) .> append("/")
+        .> append(alias)
+      end, unique_path + RepoManager.app_name
+    where filename' = alias, remove_source' = true) .> zip()

@@ -27,8 +27,8 @@ class Load
     end
 
     try
-      Directory(FilePath(env.root as AmbientAuth,
-        unique_path + RepoManager.app_name + "/" + config_name)?)?
+      File(FilePath(env.root as AmbientAuth,
+        unique_path + RepoManager.app_name + "/" + config_name + ".zip")?)
     else
       env.out.print("Couldn't find the repository \"" + config_name + "\"")
       return
@@ -42,5 +42,5 @@ class Load
     // Run _init.vl
 
   fun load_repo(repo_path: String)? =>
-    let worker = CopyWorker(".", repo_path + "/*", "",
-      env.root as AmbientAuth, verbose)
+    ZipWorker(".", repo_path + ".zip"
+    where filename' = config_name) .> uzip()?

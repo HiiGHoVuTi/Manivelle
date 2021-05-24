@@ -48,6 +48,7 @@ class Save
     )?
 
     try main_repo .> open(name)? .> remove(name) end
+    try main_repo .> open_file(name + ".zip")? .> remove(name + ".zip") end
 
     if verbose then
       @printf("Creating the repo...\n\n".cstring())
@@ -74,5 +75,7 @@ class Save
     dir
 
   fun save_repo(app_path: String)? =>
-    let worker = CopyWorker(app_path + config_name, path_string, "",
+    CopyWorker(app_path + config_name, path_string, "",
       env.root as AmbientAuth, verbose)
+    ZipWorker(app_path + config_name, app_path
+    where filename' = config_name, remove_source' = true) .> zip()

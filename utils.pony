@@ -46,18 +46,60 @@ class CopyWorker
 
     fast_copy()
 
-  fun get_dirs(): (Directory val, Directory val)? =>
-    let original = recover val
-      Directory(FilePath(auth, base_dir + start_path)?)? end
-    let target   = recover val
-      Directory(FilePath(auth, repo_name + start_path)?)? end
-    (original, target)
-
   fun fast_copy() =>
     ifdef linux or bsd then
       @system(("cp -R " + base_dir + " " + repo_name).cstring())
     elseif windows then
       @system(("xcopy " + base_dir + " " + repo_name + "/E/H/C/I").cstring())
+    else
+      @printf("Not implemented yet.\n".cstring())
+    end
+
+
+class ZipWorker
+
+  let path: String
+  let target: String
+  let remove_source: Bool
+  let filename: String
+
+  new create(path': String, target': String,
+    remove_source': Bool = false, filename': String = "") =>
+
+    path = path'
+    remove_source = remove_source'
+    target = target'
+    filename = filename'
+
+  fun zip() =>
+    ifdef linux or bsd then
+      @system((
+      "pushd " + target + "\n" +
+      "zip -r -qq " + filename + ".zip" + " " + filename + "\n" +
+      "popd"
+      ).cstring())
+      if remove_source then
+        @system(("rm -rf " + path).cstring())
+      end
+    elseif windows then
+      @printf("Not implemented yet.\n".cstring())
+    else
+      @printf("Not implemented yet.\n".cstring())
+    end
+
+  fun uzip()? =>
+    ifdef linux or bsd then
+      @printf(("unzip -qq " + target + " -d " + path).cstring())
+      if @system(("unzip -qq " + target + " -d " + path).cstring()) != 0 then
+        error
+      end
+      @system(("mv " + filename + "/* ." + "&& rm -rf " + filename).cstring())
+      if remove_source then
+        @system(("rm -rf " + path).cstring())
+      end
+      @system("ls".cstring())
+    elseif windows then
+      @printf("Not implemented yet.\n".cstring())
     else
       @printf("Not implemented yet.\n".cstring())
     end

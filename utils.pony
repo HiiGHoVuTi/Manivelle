@@ -89,7 +89,6 @@ class ZipWorker
 
   fun uzip()? =>
     ifdef linux or bsd then
-      @printf(("unzip -qq " + target + " -d " + path).cstring())
       if @system(("unzip -qq " + target + " -d " + path).cstring()) != 0 then
         error
       end

@@ -1,8 +1,10 @@
 
 use peg = "peg"
 
+use @mkdirat[I32](at: I32, name: Pointer[U8] tag, mode: U32)
+
 primitive VellangStd
-  fun echo(pass': Array[peg.ASTChild], args: Array[Variable]): Variable =>
+  fun echo(args: Array[Variable]): Variable =>
 
     let fmt = String
     for arg in args.values() do
@@ -15,7 +17,7 @@ primitive VellangStd
     @printf(fmt .> append("\n") . cstring())
     None
 
-  fun string(pass': Array[peg.ASTChild], args: Array[Variable]): Variable =>
+  fun string(args: Array[Variable]): Variable =>
     let fmt = String
     for arg in args.values() do
       match arg
@@ -26,7 +28,7 @@ primitive VellangStd
     end
     fmt.clone() .> trim_in_place(0, fmt.size()-1)
 
-  fun system(pass': Array[peg.ASTChild], args: Array[Variable]): Variable =>
+  fun system(args: Array[Variable]): Variable =>
     var broke = false
     for arg in args.values() do
       match arg
@@ -37,12 +39,26 @@ primitive VellangStd
     end
     broke.string()
 
-  fun import(pass': Array[peg.ASTChild], args: Array[Variable]): Variable =>
+  fun import(args: Array[Variable]): Variable =>
     let lang = Vellang
     for arg in args.values() do
       match arg
       // change that mess
-      | let s: String => VellangStd.system([], ["velle script run " + s])
+      | let s: String => VellangStd.system(["velle script run " + s])
       end
     end
+    None
+
+  fun mkdir(args: Array[Variable]): Variable =>
+    //TODO fix
+    let fmt = String
+    for arg in args.values() do
+      match arg
+      | let s: String => fmt.append(s + " ")
+      // | None => @printf("bruh\n".cstring())
+      end
+    end
+    @mkdirat(-1, fmt.cstring(), U32(0x1FF)).string()
+
+  fun copy(args: Array[Variable]): Variable =>
     None

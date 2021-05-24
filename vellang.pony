@@ -104,19 +104,23 @@ primitive VExpr   is peg.Label fun text(): String => "Expr"
 primitive VTerms  is peg.Label fun text(): String => "Terms"
 
 type Variable is (String | None)
-type CollapsedFunction is {(Array[peg.ASTChild], Array[Variable]): Variable}
+type CollapsedFunction is {(Array[Variable]): Variable}
+type CollapsedLazyFunction is {(Array[peg.ASTChild]): Variable}
 
 actor VellangRunner
 
-  let default: CollapsedFunction box = {(a: Array[peg.ASTChild], b: Array[Variable]) => None}box
+  let default: CollapsedFunction box = {(a: Array[Variable]) => None}box
 
   let std_lib: Map[String, CollapsedFunction box] = std_lib.create()
     .> update("sys",        VellangStd~system())
     .> update("run-script", VellangStd~import())
     .> update("echo",       VellangStd~echo())
     .> update("string",     VellangStd~string()) .> update("s:", VellangStd~string())
+    .> update("copy",       VellangStd~copy())
+    .> update("mkdir",      VellangStd~mkdir())
 
     .> update("alias", default)
+    .> update("let", default)
 
   let variables: Map[String, Variable] = variables.create()
 
@@ -132,7 +136,6 @@ actor VellangRunner
     end
 
   fun get_op(ast: peg.AST): CollapsedFunction box =>
-
 
     match ast.extract()
     | let tree: peg.AST =>
@@ -184,10 +187,12 @@ actor VellangRunner
     | let tree: peg.AST => tree
     else return end
 
-    eval_meta(expr, expr.children.slice(1), eval_args(expr.children.slice(1)))
+    let meta = eval_meta(expr, eval_args(expr.children.slice(1)))
 
-    let op = get_op(expr)
-    op(expr.children.slice(1), eval_args(expr.children.slice(1)))
+    try meta as String else
+      let op = get_op(expr)
+      op(eval_args(expr.children.slice(1)))
+    end
 
   fun ref eval_args(args: Array[peg.ASTChild]): Array[Variable] =>
     let out = Array[Variable](args.size())
@@ -203,17 +208,29 @@ actor VellangRunner
     end
     out
 
-  fun ref eval_meta(ast: peg.AST, pass': Array[peg.ASTChild], args: Array[Variable]) =>
+  fun ref eval_meta(ast: peg.AST, args: Array[Variable]): Variable =>
     match ast.extract()
     | let tree: peg.AST =>
       None
     | let tok: peg.Token =>
-      if tok.string() == "alias" then try
+      match tok.string()
+      | "alias" => try
 
-        let orig = match args(0)? | let s: String => s else return end
-        let targ = match args(1)? | let s: String => s else return end
+        let orig = try args(0)? as String else return end
+        let targ = try args(1)? as String else return end
 
         let cmd = std_lib(orig)?
         std_lib.update(targ, cmd)
-      end end
-    end
+        targ
+        end
+      | "let" =>
+        let name = try args(0)? as String else return end
+        let value = try args(1)? else return end
+        variables.update(name, value)
+        value
+      | "val" =>
+        let name = try args(0)? as String else return end
+        try variables(name)?
+        else None end
+      end
+    else None end

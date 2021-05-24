@@ -47,6 +47,8 @@ class CopyWorker
     fast_copy()
 
   fun fast_copy() =>
+    // TODO ignore files
+
     ifdef linux or bsd then
       @system(("cp -R " + base_dir + " " + repo_name).cstring())
     elseif windows then

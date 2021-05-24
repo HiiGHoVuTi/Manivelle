@@ -1,7 +1,8 @@
 
 use peg = "peg"
 
-use @mkdirat[I32](at: I32, name: Pointer[U8] tag, mode: U32)
+use @_mkdir[I32](dir: Pointer[U8] tag) if windows
+use @mkdir[I32](path: Pointer[U8] tag, mode: U32) if not windows
 
 primitive VellangStd
   fun echo(args: Array[Variable]): Variable =>
@@ -51,14 +52,47 @@ primitive VellangStd
 
   fun mkdir(args: Array[Variable]): Variable =>
     //TODO fix
-    let fmt = String
-    for arg in args.values() do
-      match arg
-      | let s: String => fmt.append(s + " ")
-      // | None => @printf("bruh\n".cstring())
-      end
-    end
-    @mkdirat(-1, fmt.cstring(), U32(0x1FF)).string()
+    None
 
   fun copy(args: Array[Variable]): Variable =>
     None
+
+  fun input(args: Array[Variable]): Variable =>
+    None
+
+  fun bool_to_atom(v: Bool): String =>
+    match v
+    | true => ":true*"
+    | false => ":false*"
+    else "" end
+
+  fun eq(args: Array[Variable]): Variable =>
+    let a1 = try args(0)? as String
+    else return try bool_to_atom((args(1)? as None) == None)
+    else return bool_to_atom(false) end end
+
+    let a2 = try args(1)? as String
+    else return bool_to_atom(false) end
+
+    bool_to_atom(a1 == a2)
+
+  fun aeq(args: Array[Variable]): Variable =>
+    eq(args)
+
+  fun nnot(args: Array[Variable]): Variable =>
+    let v = try args(0)? as String
+    else return None end
+    match v
+    | ":true*" => ":false*"
+    | ":false*" => ":true*"
+    else None
+    end
+
+  fun anot(args: Array[Variable]): Variable =>
+    let v = try args(0)? as String
+    else return bool_to_atom(true) end
+    match v
+    | ":true*" => ":false*"
+    | ":false*" => ":true*"
+    else bool_to_atom(true)
+    end

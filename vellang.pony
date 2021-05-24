@@ -118,9 +118,16 @@ actor VellangRunner
     .> update("string",     VellangStd~string()) .> update("s:", VellangStd~string())
     .> update("copy",       VellangStd~copy())
     .> update("mkdir",      VellangStd~mkdir())
+    .> update("input",      VellangStd~input())
+
+    .> update("eq",         VellangStd~eq())
+    .> update("not",        VellangStd~nnot())
+    .> update("~eq",        VellangStd~aeq())
+    .> update("~not",       VellangStd~anot())
 
     .> update("alias", default)
     .> update("let", default)
+    .> update("val", default)
 
   let variables: Map[String, Variable] = variables.create()
 
@@ -176,6 +183,7 @@ actor VellangRunner
     match tok.string()
     | "(" => None
     | ")" => None
+    | ":None*" => None
     | let s: String =>
       s
     end
@@ -208,6 +216,7 @@ actor VellangRunner
     end
     out
 
+  // TODO refactor
   fun ref eval_meta(ast: peg.AST, args: Array[Variable]): Variable =>
     match ast.extract()
     | let tree: peg.AST =>

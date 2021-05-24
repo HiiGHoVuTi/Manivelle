@@ -18,7 +18,7 @@ class Install
     alias       = cmd'.option("as").string()
     verbose     = cmd'.option("verbose").bool()
 
-    let util     = try FileUtil(env'.root as AmbientAuth)? else return end
+    let util     = try FileUtil(env'.root as AmbientAuth) else return end
 
     if verbose then
       env.out.print("Trying to save to " + dest)
@@ -38,10 +38,18 @@ class Install
   fun copy_source(util: FileUtil) =>
     let folders = try get_dirs()? else return end
 
-    let callback = {(f: File) => f.chmod(FileMode .> exec())}val
+    let callback = {(f: File) => f
+      .> chmod(FileMode .> exec())
+      .> dispose()}val
 
     util.copy("Manivelle", folders._1, folders._2
     where other_name = alias, callback = callback)
 
+    let alias' = ifdef windows then
+      alias + ".exe"
+    else
+      alias
+    end
+
     util.copy("Manivelle.exe", folders._1, folders._2
-    where other_name = alias, callback = callback)
+    where other_name = alias', callback = callback)

@@ -111,10 +111,10 @@ actor VellangRunner
   let default: CollapsedFunction box = {(a: Array[peg.ASTChild], b: Array[Variable]) => None}box
 
   let std_lib: Map[String, CollapsedFunction box] = std_lib.create()
-    .> update("sys",    VellangStd~system())
-    .> update("import", VellangStd~import())
-    .> update("echo",   VellangStd~echo())
-    .> update("string", VellangStd~string()) .> update("s:", VellangStd~string())
+    .> update("sys",        VellangStd~system())
+    .> update("run-script", VellangStd~import())
+    .> update("echo",       VellangStd~echo())
+    .> update("string",     VellangStd~string()) .> update("s:", VellangStd~string())
 
     .> update("alias", default)
 

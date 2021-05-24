@@ -75,7 +75,7 @@ These two commands will let you create the proper folder and scripts for velle. 
     (s: touch file.txt) ; string has the alias s:
     (s: echo "Hello world" > file.txt)) ; every argument is a single string that will be executed by the users' system
     
-(import
+(run-script
     (string other-module)) ; runs another .vl file in the .velle folder
 
 (alias string %) ; alias is a shy form of a macro, it aliases a function

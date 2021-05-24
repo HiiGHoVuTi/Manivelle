@@ -42,5 +42,5 @@ class Load
     // Run _init.vl
 
   fun load_repo(repo_path: String)? =>
-    let worker = CopyWorker(".", repo_path, "",
+    let worker = CopyWorker(".", repo_path + "/*", "",
       env.root as AmbientAuth, verbose)

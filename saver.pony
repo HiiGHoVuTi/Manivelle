@@ -20,7 +20,6 @@ class Save
 
     let app_dirs = AppDirs(env.vars, cmd'.fullname())
 
-
     try
       make_repository(RepoManager.get_unique_path(
         cmd', app_dirs.user_data_dir()?)
@@ -75,5 +74,5 @@ class Save
     dir
 
   fun save_repo(app_path: String)? =>
-    let worker = CopyWorker(app_path + config_name, ".", "",
+    let worker = CopyWorker(app_path + config_name, path_string, "",
       env.root as AmbientAuth, verbose)

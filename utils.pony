@@ -23,7 +23,7 @@ actor FileUtil
 
     callback(consume file2)
 
-actor CopyWorker
+class CopyWorker
 
   let auth: AmbientAuth
   let repo_name: String
@@ -43,7 +43,7 @@ actor CopyWorker
     start_path = start_path'
     base_dir   = current_dir'
     verbose    = verbose'
-    //work()
+
     fast_copy()
 
   fun get_dirs(): (Directory val, Directory val)? =>
@@ -53,16 +53,11 @@ actor CopyWorker
       Directory(FilePath(auth, repo_name + start_path)?)? end
     (original, target)
 
-  fun move(name: String, source: Directory val, target: Directory val) =>
-    if verbose then
-      @printf(("Copying " + name + "..").cstring())
-    end
-    source.rename(name, target, name)
-
-  be fast_copy() =>
-    let directories = try get_dirs()?
-    else return end
-
-    for entry in try directories._1.entries()?.values() else return end do
-      move(entry, directories._1, directories._2)
+  fun fast_copy() =>
+    ifdef linux or bsd then
+      @system(("cp -R " + base_dir + " " + repo_name).cstring())
+    elseif windows then
+      @system(("xcopy " + base_dir + " " + repo_name + "/E/H/C/I").cstring())
+    else
+      @printf("Not implemented yet.\n".cstring())
     end

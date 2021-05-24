@@ -27,12 +27,15 @@ primitive VellangStd
     fmt.clone() .> trim_in_place(0, fmt.size()-1)
 
   fun system(pass': Array[peg.ASTChild], args: Array[Variable]): Variable =>
+    var broke = false
     for arg in args.values() do
       match arg
-      | let s: String => @system(s.cstring())
+      | let s: String => if @system(s.cstring()) != 0 then
+        broke = true
+        break end
       end
     end
-    None
+    broke.string()
 
   fun import(pass': Array[peg.ASTChild], args: Array[Variable]): Variable =>
     let lang = Vellang

@@ -75,6 +75,17 @@ class val Config
 
       ])?
 
+      CommandSpec.leaf("pull", "pulls a config from github to your machine", [
+
+        OptionSpec.string("as", "alias for the config"
+        where default' = "", short' = 'a')
+
+      ], [
+
+        ArgSpec.string("name", "name of the repo (user/project)")
+
+      ])?
+
     ])? .> add_help()?
 
     cmd = match CommandParser(cs).parse(env.args, env.vars)
@@ -104,6 +115,7 @@ actor Main
     match cmd.fullname()
     | (RepoManager.app_name + "/save") => Save(env', cmd)
     | (RepoManager.app_name + "/load") => Load(env', cmd)
+    | (RepoManager.app_name + "/pull") => Pull(env', cmd)
     | (RepoManager.app_name + "/install") => Install(env', cmd)
     | (RepoManager.app_name + "/script/init") => CreateScriptsFolder(env', cmd)
     | (RepoManager.app_name + "/script/create") => CreateScripts(env', cmd)

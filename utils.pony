@@ -9,7 +9,7 @@ actor FileUtil
     auth = auth'
 
   be copy(name: String, dir1: Directory val, dir2: Directory val,
-    other_name: String = "", callback: {(File)}val = {(a: File) => None}val
+    other_name: String = "", callback: {(File)}val = {(a: File) => a.dispose()}val
   ) =>
 
     let saved_name = if other_name == "" then name else other_name end
@@ -18,17 +18,17 @@ actor FileUtil
 
     let file1 = try dir1.open_file(name)?          else return end
 
-    file2.write(file1.read(1_000_000_000))
+    file2.write(file1.read(file1.size()))
+    file1.dispose()
 
     callback(consume file2)
 
-class CopyWorker
+actor CopyWorker
 
   let auth: AmbientAuth
   let repo_name: String
   let start_path: String
   let base_dir: String
-  let util: FileUtil
 
   let verbose: Bool
 
@@ -42,33 +42,27 @@ class CopyWorker
     repo_name  = repo_name'
     start_path = start_path'
     base_dir   = current_dir'
-    util       = FileUtil(auth')
     verbose    = verbose'
-
-    work()
+    //work()
+    fast_copy()
 
   fun get_dirs(): (Directory val, Directory val)? =>
     let original = recover val
-      Directory(FilePath(auth, base_dir  + "/" + start_path)?)? end
+      Directory(FilePath(auth, base_dir + start_path)?)? end
     let target   = recover val
-      Directory(FilePath(auth, repo_name + "/" + start_path)?)? end
+      Directory(FilePath(auth, repo_name + start_path)?)? end
     (original, target)
 
-  fun work() =>
+  fun move(name: String, source: Directory val, target: Directory val) =>
+    if verbose then
+      @printf(("Copying " + name + "..").cstring())
+    end
+    source.rename(name, target, name)
+
+  be fast_copy() =>
     let directories = try get_dirs()?
     else return end
 
     for entry in try directories._1.entries()?.values() else return end do
-
-      let info = try directories._1.infoat(entry)? else continue end
-      if info.file then
-        util.copy(entry, directories._1, directories._2)
-        if verbose then
-          @printf(("Copying " + start_path + "/" + entry + "..\n").cstring())
-        end
-      else
-        if directories._2.mkdir(entry) then
-          CopyWorker(repo_name, base_dir, start_path + entry, auth, verbose)
-        end
-      end
+      move(entry, directories._1, directories._2)
     end

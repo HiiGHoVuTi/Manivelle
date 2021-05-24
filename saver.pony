@@ -32,7 +32,7 @@ class Save
     try
       save_repo(RepoManager.get_unique_path(
         cmd', app_dirs.user_data_dir()?
-      ) + "manivelle/" + config_name)?
+      ) + RepoManager.app_name + "/")?
     end
 
   fun make_repository(unique_path: String, name: String)? =>
@@ -74,7 +74,6 @@ class Save
     end
     dir
 
-  fun save_repo(repo_path: String)? =>
-    let worker = CopyWorker(repo_path, ".", "",
+  fun save_repo(app_path: String)? =>
+    let worker = CopyWorker(app_path + config_name, ".", "",
       env.root as AmbientAuth, verbose)
-

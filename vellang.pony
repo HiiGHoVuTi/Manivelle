@@ -34,7 +34,7 @@ class VellangLauncher
         )?)
         let source = file.read_string(1_000_000)
 
-        Vellang .> parse(consume source) .> run()
+        Vellang(env) .> parse(consume source) .> run()
 
       else
         env.out.print("Failed to run script: " + script)
@@ -49,9 +49,9 @@ class Vellang
 
   var parsed: (peg.AST | None) = None
 
-  new create() =>
+  new create(env: Env) =>
     parser  = VellangParser()
-    runtime = VellangRunner
+    runtime = VellangRunner(env)
 
   fun ref parse(source: String) =>
     let res =  parser.parse(peg.Source.from_string(source))._2
@@ -114,8 +114,8 @@ type Variable is (Executor val | Atom val)
 type VarList is Array[Variable] val
 type Scope is Map[String, Variable] ref
 
-type Applicator is {(Scope, Evaluator val, VarList): Variable}
-type Evaluator is {(Scope, VarList): Atom val}
+type Applicator is {(Scope, Evaluator val, VarList, Env): Variable}
+type Evaluator is {(Scope, VarList, Env): Atom val}
 
 
 class Atom is Stringable
@@ -129,11 +129,13 @@ class Atom is Stringable
 class Executor
   let inner: VarList
   let evaluator: Evaluator val
-  new val create(inn': VarList, ev': Evaluator val) =>
+  let env: Env
+  new val create(inn': VarList, ev': Evaluator val, env': Env) =>
     inner = inn'
     evaluator = ev'
+    env = env'
   fun eval(scope: Scope): Atom val =>
-    evaluator(scope, inner)
+    evaluator(scope, inner, env)
 
 class VFunction
   let applicator: Applicator val
@@ -147,27 +149,30 @@ class VFunction
     applicator = f'.applicator
     evaluator  = f'.evaluator
 
-  fun apply(inner: VarList, scope: Scope): Variable =>
-    applicator(scope, evaluator, inner)
+  fun apply(inner: VarList, scope: Scope, env: Env): Variable =>
+    applicator(scope, evaluator, inner, env)
 
 
 /* ======== */
 
 class VellangRunner
 
+  let env: Env
   let functions: Map[String, VFunction val]val = recover functions.create()
-  .> update("let",        VellangStd.let_var())
-  .> update("val",        VellangStd.val_var())
-  .> update("string",     VellangStd.str()) .> update("s:", VellangStd.str())
-  .> update("echo",       VellangStd.echo())
-  .> update("sys",        VellangStd.sys())
-  .> update("run-script", VellangStd.run_script())
-  .> update("eq",         VellangStd.eq())
-  .> update("do-seq",     VellangStd.do_seq())
-  .> update("if",         VellangStd.if_stmt())
+  .> update("def",          VellangStd.def_var())
+  .> update("val",          VellangStd.val_var())
+  .> update("string",       VellangStd.str()) .> update("s:", VellangStd.str())
+  .> update("echo",         VellangStd.echo())
+  .> update("sys",          VellangStd.sys())
+  .> update("run-script",   VellangStd.run_script())
+  .> update("config-read",  VellangStd.config_read())
+  .> update("config-write", VellangStd.config_write())
+  .> update("eq",           VellangStd.eq())
+  .> update("do-seq",       VellangStd.do_seq())
+  .> update("if",           VellangStd.if_stmt())
   end
 
-  new create() => None
+  new create(env': Env) => env = env'
 
   fun run(ast: peg.AST) =>
     let global = Scope.create()
@@ -208,7 +213,7 @@ class VellangRunner
         end
         out
       end
-      op(args, Scope.create())
+      op(args, Scope.create(), env)
       else Atom(/* Nil */"") end
     | let tok: peg.Token =>
       eval_token(tok)

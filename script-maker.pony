@@ -15,7 +15,9 @@ class CreateScriptsFolder
 
     try
       Directory(FilePath(env'.root as AmbientAuth, ".")?)?
-        .> mkdir(".velle") .> create_file(".velle/_init.vl")?
+        .> mkdir(".velle")
+        .> create_file(".velle/_init.vl")?
+        . create_file(".velle/config.json")? . write("{}")
       if verbose then
         @printf("Created .velle/\n".cstring())
       end

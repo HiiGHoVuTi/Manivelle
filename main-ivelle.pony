@@ -86,6 +86,27 @@ class val Config
 
       ])?
 
+      CommandSpec.parent("config", "the current configuration file", [
+
+      ], [
+
+        CommandSpec.leaf("show", "displays the config", [
+
+        ], [
+
+        ])?
+
+        CommandSpec.leaf("set", "sets a configuration variable usable using scripts", [
+
+        ], [
+
+          ArgSpec.string("key",   "name of the key")
+          ArgSpec.string("value", "name of the value")
+
+        ])?
+
+      ])?
+
     ])? .> add_help()?
 
     cmd = match CommandParser(cs).parse(env.args, env.vars)
@@ -120,6 +141,8 @@ actor Main
     | (RepoManager.app_name + "/script/init") => CreateScriptsFolder(env', cmd)
     | (RepoManager.app_name + "/script/create") => CreateScripts(env', cmd)
     | (RepoManager.app_name + "/script/run") => VellangLauncher(env', cmd)
+    | (RepoManager.app_name + "/config/set") => ConfigManager(env', cmd) .> set()
+    | (RepoManager.app_name + "/config/show") => ConfigManager(env', cmd) .> show()
     else
       env'.out.print(cmd.fullname())
     end

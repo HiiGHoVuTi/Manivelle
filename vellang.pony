@@ -124,7 +124,7 @@ class Atom is Stringable
     value = v'
   fun eval(_: Scope): Atom val =>
     Atom(value)
-  fun string(): String iso^ => value.string().clone()
+  fun string(): String iso^ => value.string()
 
 class Executor
   let inner: VarList
@@ -162,6 +162,7 @@ class VellangRunner
   .> update("echo",       VellangStd.echo())
   .> update("sys",        VellangStd.sys())
   .> update("run-script", VellangStd.run_script())
+  .> update("do-seq",     VellangStd.do_seq())
   end
 
   new create() => None
@@ -171,7 +172,7 @@ class VellangRunner
     try
       let branches = ((ast.extract() as peg.AST).children(1)? as peg.AST).children
       for branch in branches.values() do
-        make_top(branch, global)
+        make_variable(branch).eval(global)
       end
 
     else
@@ -192,24 +193,6 @@ class VellangRunner
   fun eval_token(tok: peg.Token): Atom val =>
     let fmt = tok.string()
     Atom(consume fmt)
-
-  // Refactor this
-  fun make_top(branch: peg.ASTChild, global_scope: Scope): Variable =>
-    match branch
-    | let bloatree: peg.AST => try
-      let tree = bloatree.children(1)? as peg.AST
-      let op = get_op(tree.children)?
-      let args: VarList = recover val
-        let out: VarList ref = []
-        for child in tree.children.slice(1).values() do
-          out.push(make_variable(child))
-        end
-        out
-      end
-      op(args, global_scope)
-      else Atom(/* Nil */"") end
-    else Atom(/* Nil */"")
-    end
 
   fun make_variable(branch: peg.ASTChild): Variable =>
     match branch

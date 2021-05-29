@@ -20,7 +20,7 @@ primitive VellangStd
   fun echo(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList) =>
-      Executor(args, ev).eval(s)
+      Executor(args, ev)
     }val, {
     (s: Scope, args: VarList) =>
       let fmt: Array[String] = []
@@ -35,7 +35,7 @@ primitive VellangStd
   fun sys(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList) =>
-      Executor(args, ev).eval(s)
+      Executor(args, ev)
     }val, {
     (s: Scope, args: VarList) =>
       var res: I32 = 0
@@ -52,7 +52,7 @@ primitive VellangStd
   fun run_script(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList) =>
-      Executor(args, ev).eval(s)
+      Executor(args, ev)
     }val,
     {
     (s: Scope, args: VarList) =>
@@ -70,7 +70,7 @@ primitive VellangStd
   fun let_var(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList) =>
-      Executor(args, ev).eval(s)
+      Executor(args, ev)
     }val, {
     (s: Scope, args: VarList) =>
       try
@@ -88,7 +88,21 @@ primitive VellangStd
     }val, {
     (s: Scope, args: VarList) =>
       try
-        let name  = args(0)?.eval(s.clone()).string()
+        let name = args(0)?.eval(s.clone()).string()
         s(consume name)?.eval(s)
       else Atom("-1") end
+    }val)
+
+  fun do_seq(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList) =>
+      Executor(args, ev)
+    }val, {
+    (s: Scope, args: VarList) =>
+      let distributed = s.clone()
+      var ret = Atom(/* Nil */"")
+      for arg in args.values() do
+        ret = arg.eval(distributed)
+      end
+      ret
     }val)

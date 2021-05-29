@@ -4,6 +4,21 @@ use "cli"
 use "files"
 use "collections"
 
+class TreeUtils
+  fun print_tree(ast: peg.AST, indent': String="") =>
+    for child in ast.children.values() do
+      match child
+      | let tree: peg.AST   =>
+        @printf((indent' + "- " + ast.label().text() + "\n").cstring())
+        print_tree(tree where indent' = indent' + "  ")
+      | let tok : peg.Token =>
+        if tok.label().text() == "" then continue end
+        @printf((indent' + "- " + tok.label().text() + ": " + tok.string() + "\n").cstring())
+      | peg.NotPresent => None
+      end
+    end
+
+
 class VellangLauncher
 
   let env: Env
@@ -59,22 +74,10 @@ class Vellang
     match parsed
     | None => return
     | let ast: peg.AST =>
-      // print_tree(ast)
+      // TreeUtils.print_tree(ast)
       runtime.run(ast)
     end
 
-  fun print_tree(ast: peg.AST, indent': String="") =>
-    for child in ast.children.values() do
-      match child
-      | let tree: peg.AST   =>
-        @printf((indent' + "- " + ast.label().text() + "\n").cstring())
-        print_tree(tree where indent' = indent' + "  ")
-      | let tok : peg.Token =>
-        if tok.label().text() == "" then continue end
-        @printf((indent' + "- " + tok.label().text() + ": " + tok.string() + "\n").cstring())
-      | peg.NotPresent => None
-      end
-    end
 
 primitive VellangParser
   fun apply(): peg.Parser val =>
@@ -103,143 +106,127 @@ primitive VWord   is peg.Label fun text(): String => "Word"
 primitive VExpr   is peg.Label fun text(): String => "Expr"
 primitive VTerms  is peg.Label fun text(): String => "Terms"
 
-type Variable is (String | None)
-type CollapsedFunction is {(Array[Variable]): Variable}
-type CollapsedLazyFunction is {(Array[peg.ASTChild]): Variable}
+/* ======== TYPEEEES ========= */
 
-actor VellangRunner
+type AtomValue is (String | F64)
+type Variable is (Executor val | Atom val)
 
-  let default: CollapsedFunction box = {(a: Array[Variable]) => None}box
+type VarList is Array[Variable] val
+type Scope is Map[String, Variable] ref
 
-  let std_lib: Map[String, CollapsedFunction box] = std_lib.create()
-    .> update("sys",        VellangStd~system())
-    .> update("run-script", VellangStd~import())
-    .> update("echo",       VellangStd~echo())
-    .> update("string",     VellangStd~string()) .> update("s:", VellangStd~string())
-    .> update("copy",       VellangStd~copy())
-    .> update("mkdir",      VellangStd~mkdir())
-    .> update("input",      VellangStd~input())
+type Applicator is {(Scope, Evaluator val, VarList): Variable}
+type Evaluator is {(Scope, VarList): Atom val}
 
-    .> update("eq",         VellangStd~eq())
-    .> update("not",        VellangStd~nnot())
-    .> update("~eq",        VellangStd~aeq())
-    .> update("~not",       VellangStd~anot())
 
-    .> update("alias", default)
-    .> update("let", default)
-    .> update("val", default)
+class Atom is Stringable
+  let value: AtomValue
+  new val create(v': AtomValue) =>
+    value = v'
+  fun eval(_: Scope): Atom val =>
+    Atom(value)
+  fun string(): String iso^ => value.string().clone()
 
-  let variables: Map[String, Variable] = variables.create()
+class Executor
+  let inner: VarList
+  let evaluator: Evaluator val
+  new val create(inn': VarList, ev': Evaluator val) =>
+    inner = inn'
+    evaluator = ev'
+  fun eval(scope: Scope): Atom val =>
+    evaluator(scope, inner)
+
+class VFunction
+  let applicator: Applicator val
+  let evaluator : Evaluator val
+
+  new val template(app': Applicator val, ev': Evaluator val) =>
+    applicator = app'
+    evaluator = ev'
+
+  new val from_template(f': VFunction val) =>
+    applicator = f'.applicator
+    evaluator  = f'.evaluator
+
+  fun apply(inner: VarList, scope: Scope): Variable =>
+    applicator(scope, evaluator, inner)
+
+
+/* ======== */
+
+class VellangRunner
+
+  let functions: Map[String, VFunction val]val = recover functions.create()
+  .> update("let",        VellangStd.let_var())
+  .> update("val",        VellangStd.val_var())
+  .> update("string",     VellangStd.str()) .> update("s:", VellangStd.str())
+  .> update("echo",       VellangStd.echo())
+  .> update("sys",        VellangStd.sys())
+  .> update("run-script", VellangStd.run_script())
+  end
 
   new create() => None
 
-  fun get_expr(ast: peg.AST): (peg.AST | None) =>
-    try match ast.children(1)?
-    | let tree: peg.AST => tree
-    else None
-    end else
-      @printf("wrong dimensions\n".cstring())
-      None
-    end
-
-  fun get_op(ast: peg.AST): CollapsedFunction box =>
-
-    match ast.extract()
-    | let tree: peg.AST =>
-      @printf("Not Implemented.".cstring())
-      return default
-    | let tok: peg.Token =>
-      try
-        return std_lib(tok.string())?
-      else
-        if tok.string() != "(" then
-        @printf(("Function \"" + tok.string() + "\" isn't defined\n").cstring())
-      end end
-    end
-    default
-
-  be run(ast: peg.AST) =>
-    // do not question the block of code
-    let main_expr = match try get_expr(
-    match ast.children(0)?
-    | let tree: peg.AST => tree
-    else return end
-    ) else return end
-    | None => return
-    | let tree: peg.AST => tree
-    end
-
-    do_seq(main_expr)
-
-  fun ref do_seq(ast: peg.AST) =>
-    for term in ast.children.values() do
-      match term
-      | let tree: peg.AST   => eval_sync(tree)
-      | let tok : peg.Token => evaluate_single_identifier(tok)
+  fun run(ast: peg.AST) =>
+    let global = Scope.create()
+    try
+      let branches = ((ast.extract() as peg.AST).children(1)? as peg.AST).children
+      for branch in branches.values() do
+        make_top(branch, global)
       end
+
+    else
+      @printf("Tree issue.\n".cstring())
     end
 
-  fun evaluate_single_identifier(tok: peg.Token): Variable =>
-    match tok.string()
-    | "(" => None
-    | ")" => None
-    | ":None*" => None
-    | let s: String =>
-      s
+  fun get_op(children: Array[peg.ASTChild]val): VFunction val? =>
+    // TODO not first-only ops
+    let op_node = children(0)? as peg.Token
+    try
+      VFunction.from_template(
+        functions(op_node.string())?)
+    else
+      @printf(("Function \"" + op_node.string() + "\" not found.\n").cstring())
+      error
     end
 
-  // refactor for lazy
-  fun ref eval_sync(ast: peg.AST): Variable =>
+  fun eval_token(tok: peg.Token): Atom val =>
+    let fmt = tok.string()
+    Atom(consume fmt)
 
-    let expr = match get_expr(ast)
-    | let tree: peg.AST => tree
-    else return end
-
-    let meta = eval_meta(expr, eval_args(expr.children.slice(1)))
-
-    try meta as String else
-      let op = get_op(expr)
-      op(eval_args(expr.children.slice(1)))
-    end
-
-  fun ref eval_args(args: Array[peg.ASTChild]): Array[Variable] =>
-    let out = Array[Variable](args.size())
-    for arg in args.values() do
-      out.push(
-      match arg
-      | let tree: peg.AST   => eval_sync(tree)
-      | let tok : peg.Token => evaluate_single_identifier(tok)
-      else
-        None
-      end
-      )
-    end
-    out
-
-  // TODO refactor
-  fun ref eval_meta(ast: peg.AST, args: Array[Variable]): Variable =>
-    match ast.extract()
-    | let tree: peg.AST =>
-      None
-    | let tok: peg.Token =>
-      match tok.string()
-      | "alias" => try
-
-        let orig = try args(0)? as String else return end
-        let targ = try args(1)? as String else return end
-
-        let cmd = std_lib(orig)?
-        std_lib.update(targ, cmd)
-        targ
+  // Refactor this
+  fun make_top(branch: peg.ASTChild, global_scope: Scope): Variable =>
+    match branch
+    | let bloatree: peg.AST => try
+      let tree = bloatree.children(1)? as peg.AST
+      let op = get_op(tree.children)?
+      let args: VarList = recover val
+        let out: VarList ref = []
+        for child in tree.children.slice(1).values() do
+          out.push(make_variable(child))
         end
-      | "let" =>
-        let name = try args(0)? as String else return end
-        let value = try args(1)? else return end
-        variables.update(name, value)
-        value
-      | "val" =>
-        let name = try args(0)? as String else return end
-        try variables(name)?
-        else None end
+        out
       end
-    else None end
+      op(args, global_scope)
+      else Atom(/* Nil */"") end
+    else Atom(/* Nil */"")
+    end
+
+  fun make_variable(branch: peg.ASTChild): Variable =>
+    match branch
+    | let bloatree: peg.AST => try
+      let tree = bloatree.children(1)? as peg.AST
+      let op = get_op(tree.children)?
+      let args: VarList = recover val
+        let out: VarList ref = []
+        for child in tree.children.slice(1).values() do
+          out.push(make_variable(child))
+        end
+        out
+      end
+      op(args, Scope.create())
+      else Atom(/* Nil */"") end
+    | let tok: peg.Token =>
+      eval_token(tok)
+    | peg.NotPresent =>
+      Atom(/* Nil */"")
+    end

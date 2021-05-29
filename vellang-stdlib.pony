@@ -1,98 +1,94 @@
 
 use peg = "peg"
 
-use @_mkdir[I32](dir: Pointer[U8] tag) if windows
-use @mkdir[I32](path: Pointer[U8] tag, mode: U32) if not windows
-
 primitive VellangStd
-  fun echo(args: Array[Variable]): Variable =>
-
-    let fmt = String
-    for arg in args.values() do
-      match arg
-      | let s: String => fmt.append(s + " ")
-      // | None => @printf("bruh\n".cstring())
+  fun str(): VFunction val =>
+    VFunction.template({
+    (s': Scope, ev: Evaluator val, args: VarList) =>
+      Executor(args, ev)
+    }val,
+    {
+    (s: Scope, args: VarList) =>
+      let distributed = s.clone()
+      let fmt: Array[String] = []
+      for arg in args.values() do
+        fmt.push(arg.eval(distributed).string())
       end
-    end
+      Atom(" ".join(fmt.values()))
+    }val)
 
-    @printf(fmt .> append("\n") . cstring())
-    None
-
-  fun string(args: Array[Variable]): Variable =>
-    let fmt = String
-    for arg in args.values() do
-      match arg
-      | "\\" => fmt.append(" ")
-      | let s: String => fmt.append(s + " ")
-      // | None => @printf("bruh\n".cstring())
+  fun echo(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList) =>
+      Executor(args, ev).eval(s)
+    }val, {
+    (s: Scope, args: VarList) =>
+      let fmt: Array[String] = []
+      for arg in args.values() do
+        fmt.push(arg.eval(s).string())
       end
-    end
-    fmt.clone() .> trim_in_place(0, fmt.size()-1)
+      let printed = "\n".join(fmt.values()) + "\n"
+      @printf(printed.cstring())
+      Atom(consume printed)
+      }val)
 
-  fun system(args: Array[Variable]): Variable =>
-    var broke = false
-    for arg in args.values() do
-      match arg
-      | let s: String => if @system(s.cstring()) != 0 then
-        broke = true
-        break end
+  fun sys(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList) =>
+      Executor(args, ev).eval(s)
+    }val, {
+    (s: Scope, args: VarList) =>
+      var res: I32 = 0
+      let distributed = s.clone()
+      for arg in args.values() do
+        res = @system(arg.eval(distributed).string().cstring())
+        if res != 0 then
+          break
+        end
       end
-    end
-    broke.string()
+      Atom(res.string())
+    }val)
 
-  fun import(args: Array[Variable]): Variable =>
-    let lang = Vellang
-    for arg in args.values() do
-      match arg
-      // change that mess
-      | let s: String => VellangStd.system(["velle script run " + s])
+  fun run_script(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList) =>
+      Executor(args, ev).eval(s)
+    }val,
+    {
+    (s: Scope, args: VarList) =>
+      var res: I32 = 0
+      for arg in args.values() do
+        // TODO change this madness
+        res = @system(("velle script run " + arg.eval(s.clone()).string()).cstring())
+        if res != 0 then
+          break
+        end
       end
-    end
-    None
+      Atom(res.string())
+    }val)
 
-  fun mkdir(args: Array[Variable]): Variable =>
-    //TODO fix
-    None
+  fun let_var(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList) =>
+      Executor(args, ev).eval(s)
+    }val, {
+    (s: Scope, args: VarList) =>
+      try
+        let name  = args(0)?.eval(s).string()
+        let value = args(1)?
+        s.update(consume name, value)
+        Atom("0")
+      else Atom("-1") end
+    }val)
 
-  fun copy(args: Array[Variable]): Variable =>
-    None
-
-  fun input(args: Array[Variable]): Variable =>
-    None
-
-  fun bool_to_atom(v: Bool): String =>
-    match v
-    | true => ":true*"
-    | false => ":false*"
-    else "" end
-
-  fun eq(args: Array[Variable]): Variable =>
-    let a1 = try args(0)? as String
-    else return try bool_to_atom((args(1)? as None) == None)
-    else return bool_to_atom(false) end end
-
-    let a2 = try args(1)? as String
-    else return bool_to_atom(false) end
-
-    bool_to_atom(a1 == a2)
-
-  fun aeq(args: Array[Variable]): Variable =>
-    eq(args)
-
-  fun nnot(args: Array[Variable]): Variable =>
-    let v = try args(0)? as String
-    else return None end
-    match v
-    | ":true*" => ":false*"
-    | ":false*" => ":true*"
-    else None
-    end
-
-  fun anot(args: Array[Variable]): Variable =>
-    let v = try args(0)? as String
-    else return bool_to_atom(true) end
-    match v
-    | ":true*" => ":false*"
-    | ":false*" => ":true*"
-    else bool_to_atom(true)
-    end
+  fun val_var(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList) =>
+      Executor(args, ev)
+    }val, {
+    (s: Scope, args: VarList) =>
+      try
+        let name  = args(0)?.eval(s.clone()).string()
+        s(consume name)?.eval(s)
+      else Atom("-1") end
+    }val)

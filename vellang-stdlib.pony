@@ -106,3 +106,36 @@ primitive VellangStd
       end
       ret
     }val)
+
+  fun eq(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList) =>
+      Executor(args, ev)
+    }val, {
+    (s: Scope, args: VarList) =>
+      try
+        let v2 = args(1)?.eval(s.clone()).value
+        match args(0)?.eval(s.clone()).value
+        | let v: String => Atom(v == (v2 as String))
+        | let v: F64    => Atom(v == (v2 as F64))
+        | let v: Bool   => Atom(v == (v2 as Bool))
+        end
+      else Atom(/* Nil */"") end
+    }val)
+
+  fun if_stmt(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList) =>
+      Executor(args, ev)
+    }val, {
+    (s: Scope, args: VarList) =>
+      try
+        let cond = args(0)?.eval(s)
+        let outcome = cond.value as Bool
+        if outcome then
+          args(1)?.eval(s)
+        else
+          args(3)?.eval(s)
+        end
+      else Atom(/* Nil */"") end
+    }val)

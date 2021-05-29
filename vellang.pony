@@ -108,7 +108,7 @@ primitive VTerms  is peg.Label fun text(): String => "Terms"
 
 /* ======== TYPEEEES ========= */
 
-type AtomValue is (String | F64)
+type AtomValue is (String | F64 | Bool)
 type Variable is (Executor val | Atom val)
 
 type VarList is Array[Variable] val
@@ -162,7 +162,9 @@ class VellangRunner
   .> update("echo",       VellangStd.echo())
   .> update("sys",        VellangStd.sys())
   .> update("run-script", VellangStd.run_script())
+  .> update("eq",         VellangStd.eq())
   .> update("do-seq",     VellangStd.do_seq())
+  .> update("if",         VellangStd.if_stmt())
   end
 
   new create() => None

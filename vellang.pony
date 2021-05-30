@@ -122,11 +122,12 @@ type Variable is (Executor val | Atom val)
 
 type VarList is Array[Variable] val
 type Scope is Map[String, Variable] ref
+type FunctionScope is Map[String, (String, Executor val)]
 
 class MetaScope
   let env: Env
-  let functions: Map[String, Executor val]ref
-  new create(env': Env, functions': Map[String, Executor val]ref) =>
+  let functions: FunctionScope ref
+  new create(env': Env, functions': FunctionScope ref) =>
     env = env'
     functions = functions'
   fun clone(): MetaScope ref =>
@@ -179,7 +180,9 @@ class VellangRunner
   Map[String, VFunction val].create()
   .> update("def",          VellangStd.def_var())
   .> update("val",          VellangStd.val_var())
-  .> update("string",       VellangStd.str()) .> update("s:", VellangStd.str())
+  .> update("defun",        VellangStd.defun())
+  .> update("call",         VellangStd.call())
+  .> update("string",       VellangStd.str()) .> update("s:", VellangStd.str()) .> update("&", VellangStd.str())
   .> update("echo",         VellangStd.echo())
   .> update("sys",          VellangStd.sys())
   .> update("run-script",   VellangStd.run_script())
@@ -195,7 +198,7 @@ class VellangRunner
 
   fun run(ast: peg.AST) =>
     let global = Scope.create()
-    let global_meta = MetaScope(env, Map[String, Executor val])
+    let global_meta = MetaScope(env, FunctionScope)
     try
       let branches = ((ast.extract() as peg.AST).children(1)? as peg.AST).children
       for branch in branches.values() do
@@ -213,7 +216,8 @@ class VellangRunner
       VFunction.from_template(
         get_functions()(op_node.string())?)
     else
-      @printf(("Function \"" + op_node.string() + "\" not found.\n").cstring())
+      /*@printf(("Function \"" + op_node.string() + "\" not found.\n").cstring())
+      error*/
       error
     end
 
@@ -225,18 +229,24 @@ class VellangRunner
     match branch
     | let bloatree: peg.AST => try
       let tree = bloatree.children(1)? as peg.AST
-      let op = get_op(tree.children)?
+
+      var op_from_std = true
+      let op = try get_op(tree.children)?
+      else op_from_std = false ; VellangStd.custom_call() end
+
       let args: VarList = recover val
         let out: VarList ref = []
-        for child in tree.children.slice(1).values() do
+        for child in tree.children.slice(
+        if op_from_std then 1 else 0 end).values() do
           out.push(make_variable(child))
         end
         out
       end
-      op(args, Scope.create(), MetaScope(env, Map[String, Executor val]))
-      else Atom(/* Nil */"") end
+
+      op(args, Scope.create(), MetaScope(env, FunctionScope))
+      else Atom(Error("Couldn't find your function.")) end
     | let tok: peg.Token =>
       eval_token(tok)
     | peg.NotPresent =>
-      Atom(/* Nil */"")
+      Atom(Error("Empty"))
     end

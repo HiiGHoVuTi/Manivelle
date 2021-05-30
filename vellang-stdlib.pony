@@ -79,8 +79,8 @@ primitive VellangStd
         let name  = args(0)?.eval(s, ms.clone()).string()
         let value = args(1)?
         s.update(consume name, value)
-        Atom("0")
-      else Atom("-1") end
+        Atom(true)
+      else Atom(false) end
     }val)
 
   fun val_var(): VFunction val =>
@@ -92,7 +92,78 @@ primitive VellangStd
       try
         let name = args(0)?.eval(s.clone(), ms.clone()).string()
         s(consume name)?.eval(s, ms)
-      else Atom("-1") end
+      else Atom(Error("Value not found.")) end
+    }val)
+
+  fun defun(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor(args, ev)
+    }val, {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        let name  = args(0)?.eval(s.clone(), ms.clone()).string()
+        let fun_args = args(1)?.eval(s.clone(), ms.clone()).string()
+        let value = args(2)? as Executor val
+        ms.functions.update(consume name, (consume fun_args, value))
+        Atom(true)
+      else Atom(false) end
+    }val)
+
+  fun custom_call(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor(args, ev)
+    }val, {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        let passed_scope = s.clone()
+        let name = args(0)?.eval(s.clone(), ms.clone()).string()
+        let fun_args = args.slice(1)
+        let func = ms.functions(consume name)?
+        let arg_names = func._1.split_by(" ")
+
+        var i: USize = 0
+        while true do
+          try
+            let key = arg_names(i)?
+            let value = fun_args(i)?
+            passed_scope(key) = value
+            i = i + 1
+          else break end
+        end
+        func._2.eval(passed_scope, ms.clone())
+      else
+        Atom(Error("Couldn't call the function"))
+      end
+    }val)
+
+  fun call(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor(args, ev)
+    }val, {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        let passed_scope = s.clone()
+        let name = args(0)?.eval(s.clone(), ms.clone()).string()
+        let fun_args = args.slice(1)
+        let func = ms.functions(consume name)?
+        let arg_names = func._1.split_by(" ")
+
+        var i: USize = 0
+        while true do
+          try
+            let key = arg_names(i)?
+            let value = fun_args(i)?
+            passed_scope(key) = value
+            i = i + 1
+          else break end
+        end
+        func._2.eval(passed_scope, ms.clone())
+      else
+        Atom(Error("Couldn't call the function"))
+      end
     }val)
 
   fun do_seq(): VFunction val =>

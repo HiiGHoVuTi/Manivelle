@@ -108,34 +108,49 @@ primitive VTerms  is peg.Label fun text(): String => "Terms"
 
 /* ======== TYPEEEES ========= */
 
-type AtomValue is (String | F64 | Bool)
+class Error is Stringable
+  let message: String
+  new val create(msg': String) =>
+    message = msg'
+  fun clone(): Error val =>
+    Error(message.clone())
+  fun string(): String iso^ =>
+    message.clone()
+
+type AtomValue is (String | F64 | Bool | Error val)
 type Variable is (Executor val | Atom val)
 
 type VarList is Array[Variable] val
 type Scope is Map[String, Variable] ref
 
-type Applicator is {(Scope, Evaluator val, VarList, Env): Variable}
-type Evaluator is {(Scope, VarList, Env): Atom val}
+class MetaScope
+  let env: Env
+  let functions: Map[String, Executor val]ref
+  new create(env': Env, functions': Map[String, Executor val]ref) =>
+    env = env'
+    functions = functions'
+  fun clone(): MetaScope ref =>
+    MetaScope(env, functions.clone())
 
+type Applicator is {(Scope, Evaluator val, VarList, MetaScope): Variable}
+type Evaluator is {(Scope, VarList, MetaScope): Atom val}
 
 class Atom is Stringable
   let value: AtomValue
   new val create(v': AtomValue) =>
     value = v'
-  fun eval(_: Scope): Atom val =>
+  fun eval(_: Scope, __: MetaScope): Atom val =>
     Atom(value)
   fun string(): String iso^ => value.string()
 
 class Executor
   let inner: VarList
   let evaluator: Evaluator val
-  let env: Env
-  new val create(inn': VarList, ev': Evaluator val, env': Env) =>
+  new val create(inn': VarList, ev': Evaluator val) =>
     inner = inn'
     evaluator = ev'
-    env = env'
-  fun eval(scope: Scope): Atom val =>
-    evaluator(scope, inner, env)
+  fun eval(scope: Scope, ms: MetaScope): Atom val =>
+    evaluator(scope, inner, ms)
 
 class VFunction
   let applicator: Applicator val
@@ -149,8 +164,8 @@ class VFunction
     applicator = f'.applicator
     evaluator  = f'.evaluator
 
-  fun apply(inner: VarList, scope: Scope, env: Env): Variable =>
-    applicator(scope, evaluator, inner, env)
+  fun apply(inner: VarList, scope: Scope, ms: MetaScope): Variable =>
+    applicator(scope, evaluator, inner, ms)
 
 
 /* ======== */
@@ -158,7 +173,10 @@ class VFunction
 class VellangRunner
 
   let env: Env
-  let functions: Map[String, VFunction val]val = recover functions.create()
+
+
+  fun get_functions(): Map[String, VFunction val]ref =>
+  Map[String, VFunction val].create()
   .> update("def",          VellangStd.def_var())
   .> update("val",          VellangStd.val_var())
   .> update("string",       VellangStd.str()) .> update("s:", VellangStd.str())
@@ -168,18 +186,20 @@ class VellangRunner
   .> update("config-read",  VellangStd.config_read())
   .> update("config-write", VellangStd.config_write())
   .> update("eq",           VellangStd.eq())
+  .> update("is-error",     VellangStd.is_error())
   .> update("do-seq",       VellangStd.do_seq())
   .> update("if",           VellangStd.if_stmt())
-  end
+  .> update("match-case",   VellangStd.match_case())
 
   new create(env': Env) => env = env'
 
   fun run(ast: peg.AST) =>
     let global = Scope.create()
+    let global_meta = MetaScope(env, Map[String, Executor val])
     try
       let branches = ((ast.extract() as peg.AST).children(1)? as peg.AST).children
       for branch in branches.values() do
-        make_variable(branch).eval(global)
+        make_variable(branch).eval(global, global_meta)
       end
 
     else
@@ -191,7 +211,7 @@ class VellangRunner
     let op_node = children(0)? as peg.Token
     try
       VFunction.from_template(
-        functions(op_node.string())?)
+        get_functions()(op_node.string())?)
     else
       @printf(("Function \"" + op_node.string() + "\" not found.\n").cstring())
       error
@@ -213,7 +233,7 @@ class VellangRunner
         end
         out
       end
-      op(args, Scope.create(), env)
+      op(args, Scope.create(), MetaScope(env, Map[String, Executor val]))
       else Atom(/* Nil */"") end
     | let tok: peg.Token =>
       eval_token(tok)

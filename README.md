@@ -87,6 +87,13 @@ These two commands will let you create the proper folder and scripts for velle. 
 (config-write (s: 
     (config-read value) (s: appended this to the current value)))
 
+
+(defun say-hi (& name) 
+    (echo (& Hello (val name)))
+)
+
+(say-hi Vellang)
+
 )
 ```
 

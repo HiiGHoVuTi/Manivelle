@@ -17,12 +17,16 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      - name: Install Dependencies
+      - name: Download ponyup
+        run: sh -c "$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)"
+          
+      - name: Download ponyc / coral
         run: |
-          sh -c "$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)"
           ponyup update ponyc release
           ponyup update corral release
-          corral fetch
+      
+      - name: Corral fetch
+        run: corral fetch
 
       - name: Compile
         run: |

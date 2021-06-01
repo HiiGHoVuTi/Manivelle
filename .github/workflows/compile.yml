@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Download ponyup
-        run: sh -c "set +u\n$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)"
+        run: sh -c "set +u && $(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)"
 
       - name: Download ponyc / coral
         run: |

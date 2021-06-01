@@ -1,0 +1,45 @@
+
+name: CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+  build-ubuntu:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - name: Install Dependencies
+        run: |
+          sh -c "$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)"
+          ponyup update ponyc release
+          ponyup update corral release
+          corral fetch
+
+      - name: Compile
+        run: |
+          corral run -- ponyc
+          
+      - name: Release file
+        uses: djnicholson/release-action@v2.10
+        with:
+          # GitHub auth token
+          # token: 
+          # Name of Release to add file to
+          # release-name: # optional, default is Rolling build
+          # Name of the tag for the release (will be associated with current branch)
+          tag-name: compiled-rolling # optional, default is v0.0-rolling
+          # Name for the asset
+          asset-name: Manivelle-Ubuntu
+          # File to release
+          file: ./Manivelle
+
+

@@ -73,7 +73,7 @@ These two commands will let you create the proper folder and scripts for velle. 
 
 (def greeting Hello)
 
-(echo (s:
+(echo (&
     greeting
     (string World !)))
 
@@ -84,7 +84,7 @@ These two commands will let you create the proper folder and scripts for velle. 
 (run-script
     (string other-module)) ; runs another .vl file in the .velle folder
 
-(config-write (s: 
+(config-write (& 
     (config-read value) (s: appended this to the current value)))
 
 

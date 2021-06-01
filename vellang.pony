@@ -46,10 +46,12 @@ class Vellang
 
   let parser : peg.Parser val
   let runtime: VellangRunner
+  let env: Env
 
   var parsed: (peg.AST | None) = None
 
-  new create(env: Env) =>
+  new create(env': Env) =>
+    env = env'
     parser  = VellangParser()
     runtime = VellangRunner(env)
 
@@ -70,12 +72,13 @@ class Vellang
       None
     end
 
-  fun run() =>
+  fun run(s: Scope = Scope, ms: (MetaScope | None) = None) =>
     match parsed
     | None => return
     | let ast: peg.AST =>
       // TreeUtils.print_tree(ast)
-      runtime.run(ast)
+      try  runtime.run(ast, s, ms as MetaScope)
+      else runtime.run(ast, s, MetaScope(env, FunctionScope)) end
     end
 
 
@@ -108,6 +111,8 @@ primitive VTerms  is peg.Label fun text(): String => "Terms"
 
 /* ======== TYPEEEES ========= */
 
+type VCollection is (String)
+
 class Error is Stringable
   let message: String
   new val create(msg': String) =>
@@ -115,9 +120,9 @@ class Error is Stringable
   fun clone(): Error val =>
     Error(message.clone())
   fun string(): String iso^ =>
-    message.clone()
+    "(Error: \"" + message.clone() + "\")"
 
-type AtomValue is (String | F64 | Bool | Error val)
+type AtomValue is (String | F64 | Bool | Error val | VCollection)
 type Variable is (Executor val | Atom val)
 
 type VarList is Array[Variable] val
@@ -143,15 +148,32 @@ class Atom is Stringable
   fun eval(_: Scope, __: MetaScope): Atom val =>
     Atom(value)
   fun string(): String iso^ => value.string()
+  fun dbg_string(_: Scope, __: MetaScope, ___: USize, ____: USize)
+    : String iso^ => string()
 
 class Executor
+  let name: String val
   let inner: VarList
   let evaluator: Evaluator val
-  new val create(inn': VarList, ev': Evaluator val) =>
+  new val create(name': String, inn': VarList, ev': Evaluator val) =>
+    name = name'
     inner = inn'
     evaluator = ev'
   fun eval(scope: Scope, ms: MetaScope): Atom val =>
     evaluator(scope, inner, ms)
+  fun dbg_string(s: Scope, ms: MetaScope,
+  depth: USize, desired_depth: USize): String iso^ =>
+    if depth > desired_depth then
+      eval(s, ms).string()
+    else
+      let out = String
+        .> append("(" + name)
+      for child in inner.values() do
+        out.append(" " + child.dbg_string(s, ms, depth + 1, desired_depth))
+      end
+      out .> append(")")
+      recover out.clone() end
+    end
 
 class VFunction
   let applicator: Applicator val
@@ -183,22 +205,28 @@ class VellangRunner
   .> update("defun",        VellangStd.defun())
   .> update("call",         VellangStd.call())
   .> update("string",       VellangStd.str()) .> update("s:", VellangStd.str()) .> update("&", VellangStd.str())
+  .> update("error",        VellangStd.err())
+  .> update("dbg",          VellangStd.dbg())
+  .> update("number",       VellangStd.float()) .> update("f:", VellangStd.float())
+  .> update("+",            VellangStd.add())
+  .> update("-",            VellangStd.sub())
+  .> update("*",            VellangStd.mul())
+  .> update("/",            VellangStd.div())
   .> update("echo",         VellangStd.echo())
   .> update("sys",          VellangStd.sys())
   .> update("run-script",   VellangStd.run_script())
   .> update("config-read",  VellangStd.config_read())
   .> update("config-write", VellangStd.config_write())
   .> update("eq",           VellangStd.eq())
+  .> update("not",          VellangStd.vnot())
   .> update("is-error",     VellangStd.is_error())
-  .> update("do-seq",       VellangStd.do_seq())
+  .> update("do",           VellangStd.do_seq())
   .> update("if",           VellangStd.if_stmt())
   .> update("match-case",   VellangStd.match_case())
 
   new create(env': Env) => env = env'
 
-  fun run(ast: peg.AST) =>
-    let global = Scope.create()
-    let global_meta = MetaScope(env, FunctionScope)
+  fun run(ast: peg.AST, global: Scope, global_meta: MetaScope) =>
     try
       let branches = ((ast.extract() as peg.AST).children(1)? as peg.AST).children
       for branch in branches.values() do
@@ -216,14 +244,13 @@ class VellangRunner
       VFunction.from_template(
         get_functions()(op_node.string())?)
     else
-      /*@printf(("Function \"" + op_node.string() + "\" not found.\n").cstring())
-      error*/
       error
     end
 
   fun eval_token(tok: peg.Token): Atom val =>
     let fmt = tok.string()
-    Atom(consume fmt)
+    try Atom(fmt.f64()?)
+    else Atom(consume fmt) end
 
   fun make_variable(branch: peg.ASTChild): Variable =>
     match branch

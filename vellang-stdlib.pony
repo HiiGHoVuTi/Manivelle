@@ -2,12 +2,25 @@
 use peg = "peg"
 use "files"
 use "json"
+use "itertools"
 
 primitive VellangStd
+
+  fun compare(v1: AtomValue, v2: AtomValue): Bool =>
+    try
+      match v1
+      | let v: String => v == (v2 as String)
+      | let v: Bool   => v == (v2 as Bool)
+      | let v: F64    => (v - (v2 as F64)).abs() < 0.001
+      //| let v: VList val  => v == (v2 as VList val)
+      | let v: Error val  => false
+      end
+    else false end
+
   fun str(): VFunction val =>
     VFunction.template({
     (s': Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("&", args, ev)
     }val,
     {
     (s: Scope, args: VarList, ms: MetaScope) =>
@@ -19,10 +32,109 @@ primitive VellangStd
       Atom(" ".join(fmt.values()))
     }val)
 
+  fun err(): VFunction val =>
+    VFunction.template({
+    (s': Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor("error", args, ev)
+    }val,
+    {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      let distributed = s.clone()
+      let fmt: Array[String] = []
+      for arg in args.values() do
+        fmt.push(arg.eval(distributed, ms.clone()).string())
+      end
+      Atom(Error(" ".join(fmt.values())))
+    }val)
+
+  fun vnot(): VFunction val =>
+    VFunction.template({
+    (s': Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor("not", args, ev)
+    }val,
+    {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        let arg = args(0)?.eval(s.clone(), ms.clone()).value
+        Atom(not (arg as Bool))
+      else Atom(Error("Invalid argument to not")) end
+    }val)
+
+
+  fun float(): VFunction val =>
+    VFunction.template({
+    (s': Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor("f:", args, ev)
+    }val,
+    {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        let arg = args(0)?.eval(s.clone(), ms.clone()).string()
+        Atom(arg.f64()?)
+      else Atom(Error("Invalid argument to Number")) end
+    }val)
+
+  fun add(): VFunction val =>
+    VFunction.template({
+    (s': Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor("+", args, ev)
+    }val,
+    {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        let arg1 = args(0)?.eval(s.clone(), ms.clone()).string().f64()?
+        let arg2 = args(1)?.eval(s.clone(), ms.clone()).string().f64()?
+        Atom(arg1 + arg2)
+      else Atom(Error("Invalid arguments to arithmetic operation")) end
+    }val)
+
+  fun sub(): VFunction val =>
+    VFunction.template({
+    (s': Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor("-",args, ev)
+    }val,
+    {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        let arg1 = args(0)?.eval(s.clone(), ms.clone()).string().f64()?
+        let arg2 = args(1)?.eval(s.clone(), ms.clone()).string().f64()?
+        Atom(arg1 - arg2)
+      else Atom(Error("Invalid arguments to arithmetic operation")) end
+    }val)
+
+  fun mul(): VFunction val =>
+    VFunction.template({
+    (s': Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor("*", args, ev)
+    }val,
+    {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        let arg1 = args(0)?.eval(s.clone(), ms.clone()).string().f64()?
+        let arg2 = args(1)?.eval(s.clone(), ms.clone()).string().f64()?
+        Atom(arg1 * arg2)
+      else Atom(Error("Invalid arguments to arithmetic operation")) end
+    }val)
+
+  fun div(): VFunction val =>
+    VFunction.template({
+    (s': Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor("/", args, ev)
+    }val,
+    {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        let arg1 = args(0)?.eval(s.clone(), ms.clone()).string().f64()?
+        let arg2 = args(1)?.eval(s.clone(), ms.clone()).string().f64()?
+        Atom(arg1 / arg2)
+      else Atom(Error("Invalid arguments to arithmetic operation")) end
+    }val)
+
+
   fun echo(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("echo", args, ev)
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       let fmt: Array[String] = []
@@ -32,12 +144,29 @@ primitive VellangStd
       let printed = "\n".join(fmt.values()) + "\n"
       @printf(printed.cstring())
       Atom(consume printed)
-      }val)
+    }val)
+
+  fun dbg(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor("dbg", args, ev)
+    }val, {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        let target = args(0)?
+        let depth  = try match args(1)?.eval(s, ms).value
+        | let v: F64    => USize.from[F64](v)
+        else error
+        end else 1 end
+        let fmt    = target.dbg_string(s, ms, 0, depth)
+        Atom(consume fmt)
+      else Atom(Error("Couldn't dbg")) end
+    })
 
   fun sys(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("sys", args, ev)
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       var res: I32 = 0
@@ -54,25 +183,26 @@ primitive VellangStd
   fun run_script(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("run-script", args, ev)
     }val,
     {
     (s: Scope, args: VarList, ms: MetaScope) =>
       var res: I32 = 0
       for arg in args.values() do
         // TODO change this madness
-        res = @system(("velle script run " + arg.eval(s.clone(), ms.clone()).string()).cstring())
-        if res != 0 then
-          break
-        end
+        let name = arg.eval(s.clone(), ms.clone()).string()
+        let file = try
+          File(FilePath(ms.env.root as AmbientAuth, ".velle/" + consume name + ".vl")?)
+        else return Atom(Error("Couldn't import file.")) end
+        Vellang(ms.env) .> parse(file.read_string(1_000_000)) .> run(s.clone(), ms)
       end
-      Atom(res.string())
+      Atom(0)
     }val)
 
   fun def_var(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("def", args, ev)
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       try
@@ -86,7 +216,7 @@ primitive VellangStd
   fun val_var(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("val", args, ev)
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       try
@@ -98,7 +228,7 @@ primitive VellangStd
   fun defun(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("defun", args, ev)
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       try
@@ -113,14 +243,15 @@ primitive VellangStd
   fun custom_call(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("", args, ev)
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       try
         let passed_scope = s.clone()
         let name = args(0)?.eval(s.clone(), ms.clone()).string()
         let fun_args = args.slice(1)
-        let func = ms.functions(consume name)?
+        let func = try ms.functions(name.clone())?
+        else return s(name.clone())?.eval(s, ms) end
         let arg_names = func._1.split_by(" ")
 
         var i: USize = 0
@@ -141,7 +272,7 @@ primitive VellangStd
   fun call(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("call", args, ev)
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       try
@@ -169,7 +300,7 @@ primitive VellangStd
   fun do_seq(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("do-seq", args, ev)
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       let distributed = s.clone()
@@ -184,24 +315,20 @@ primitive VellangStd
   fun eq(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("eq", args, ev)
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       try
+        let v1 = args(0)?.eval(s.clone(), ms.clone()).value
         let v2 = args(1)?.eval(s.clone(), ms.clone()).value
-        match args(0)?.eval(s.clone(), ms.clone()).value
-        | let v: String => Atom(v == (v2 as String))
-        | let v: F64    => Atom(v == (v2 as F64))
-        | let v: Bool   => Atom(v == (v2 as Bool))
-        | let v: Error val  => Atom(v)
-        end
-      else Atom(Error("Can't use eq on arguments")) end
+        Atom(VellangStd.compare(v1, v2))
+        else Atom(Error("Can't use eq on arguments")) end
     }val)
 
   fun is_error(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("is-error", args, ev)
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       try
@@ -213,7 +340,7 @@ primitive VellangStd
   fun if_stmt(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("if",args, ev)
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       try
@@ -230,7 +357,7 @@ primitive VellangStd
   fun match_case(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("match-case",args, ev)
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       var ret: Atom val = Atom(Error("No cases matched in a match-case"))
@@ -239,12 +366,7 @@ primitive VellangStd
         var i: USize = 1
         while true do
           let value = args(i)?.eval(s.clone(), ms.clone()).value
-          if match value
-            | let v: String => v == (compared as String)
-            | let v: Bool   => v == (compared as Bool)
-            | let v: F64    => v == (compared as F64)
-            | let v: Error val  => false
-          end then
+          if VellangStd.compare(value, compared) then
             ret = args(i+1)?.eval(s.clone(), ms.clone())
           end
           i = i + 2
@@ -256,7 +378,7 @@ primitive VellangStd
   fun config_read(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("config-read", args, ev)
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       let config_file = try File(
@@ -272,7 +394,7 @@ primitive VellangStd
   fun config_write(): VFunction val =>
     VFunction.template({
     (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
-      Executor(args, ev)
+      Executor("config-write", args, ev)
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       let config_file = try File(
@@ -291,4 +413,14 @@ primitive VellangStd
 
         Atom(value)
       else Atom(Error("Couldn't write to config")) end
+    }val)
+
+  fun list(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor(":",args, ev)
+    }val, {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      // ...
+      Atom(Error("Not Implemented."))
     }val)

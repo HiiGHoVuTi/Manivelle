@@ -1,0 +1,13 @@
+name: Test
+
+on: pull_request
+
+  linux:
+    name: Verify PR builds on Linux with most recent ponyc release
+    runs-on: ubuntu-latest
+    container:
+      image: ponylang/shared-docker-ci-x86-64-unknown-linux-builder:release
+    steps:
+      - uses: actions/checkout@v2
+      - name: Test with the most recent ponyc release
+        run: make test

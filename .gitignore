@@ -1,4 +1,5 @@
-Manivelle
-lock.json
 .velle/
 .velle/*
+_corral/
+_repos/
+build/

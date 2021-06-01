@@ -21,7 +21,7 @@ Then you can compile and install (as root) Manivelle !
 ``` shell
 $ corral run -- ponyc
 
-$ sudo ./Manivelle install --as velle --to /usr/bin 
+$ sudo build/release/velle install --as velle --to /usr/bin
 ```
 This should install manivelle as `velle` on your system.
 
@@ -36,11 +36,11 @@ usage: manivelle [<options>] <command> [<args> ...]
 a tool for working with file systems and boilerplate.
 
 Options:
-   -h, --help=false       
+   -h, --help=false
    -V, --verbose=false    whether to log progress
 
 Commands:
-   help <command>         
+   help <command>
    install                installs manivelle in the repo directory
    pull <name>            pulls a config from github to your machine
    config                 the current configuration file
@@ -80,15 +80,15 @@ These two commands will let you create the proper folder and scripts for velle. 
 (sys
     (s: touch file.txt) ; string has the alias s:
     (s: echo "Hello world" > file.txt)) ; every argument is a single string that will be executed by the users' system
-    
+
 (run-script
     (string other-module)) ; runs another .vl file in the .velle folder
 
-(config-write (& 
+(config-write (&
     (config-read value) (s: appended this to the current value)))
 
 
-(defun say-hi (& name) 
+(defun say-hi (& name)
     (echo (& Hello (val name)))
 )
 

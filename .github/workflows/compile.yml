@@ -1,9 +1,12 @@
 name: Release
 
-on:
+on: 
   push:
-    tags:
-      - \d+.\d+.\d+
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
 
 jobs:
   x86-64-unknown-linux-release:

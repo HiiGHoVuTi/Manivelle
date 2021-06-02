@@ -21,9 +21,9 @@ primitive VellangStd
     match v.value
     | let l: VList val =>
       try
-        let index = USize.from[F64](args(0)?.eval(s, ms).value as F64)
+        let index = USize.from[F64](args(0)?.eval(s.clone(), ms.clone()).value as F64)
         try
-          let iend = USize.from[F64](args(1)?.eval(s, ms).value as F64)
+          let iend = USize.from[F64](args(1)?.eval(s.clone(), ms.clone()).value as F64)
           Atom(l.slice(index, iend))
         else Atom(l(index)) end
       else v end
@@ -201,7 +201,6 @@ primitive VellangStd
     (s: Scope, args: VarList, ms: MetaScope) =>
       var res: I32 = 0
       for arg in args.values() do
-        // TODO change this madness
         let name = arg.eval(s.clone(), ms.clone()).string()
         let file = try
           File(FilePath(ms.env.root as AmbientAuth, ".velle/" + consume name + ".vl")?)
@@ -264,9 +263,12 @@ primitive VellangStd
         let fun_args = args.slice(1)
         let func = try ms.functions(name.clone())?
         else
+          // @printf((name.clone() + "\n").cstring())
           let fun_args_cloned = recover Array[Variable](fun_args.size()) end
           for v in fun_args.values() do fun_args_cloned.push(v) end
-          return VellangStd.apply_struct(s(name.clone())?.eval(s, ms), consume fun_args_cloned, s, ms)
+          return VellangStd.apply_struct(s(name.clone())?
+            .eval(passed_scope, ms.clone()),
+              consume fun_args_cloned, passed_scope, ms.clone())
         end
         let arg_names = func._1.split_by(" ")
 
@@ -274,7 +276,7 @@ primitive VellangStd
         while true do
           try
             let key = arg_names(i)?
-            let value = fun_args(i)?
+            let value = fun_args(i)?.eval(s.clone(), ms.clone())
             passed_scope(key) = value
             i = i + 1
           else break end

@@ -146,3 +146,6 @@ actor Main
     else
       env'.out.print(cmd.fullname())
     end
+
+  fun @runtime_override_defaults(rto: RuntimeOptions) =>
+    rto.ponynoblock = true

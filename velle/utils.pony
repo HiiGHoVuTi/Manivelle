@@ -18,7 +18,7 @@ actor FileUtil
 
     let file1 = try dir1.open_file(name)?          else return end
 
-    file2.write(file1.read(file1.size()))
+    file2.write(file1.read(1_000_000_000_000))
     file1.dispose()
 
     callback(consume file2)

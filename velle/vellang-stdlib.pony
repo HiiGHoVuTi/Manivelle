@@ -17,6 +17,18 @@ primitive VellangStd
       end
     else false end
 
+  fun apply_struct(v: Atom val, args: VarList, s: Scope, ms: MetaScope): Atom val =>
+    match v.value
+    | let l: VList val =>
+      try
+        let index = USize.from[F64](args(0)?.eval(s, ms).value as F64)
+        try
+          let iend = USize.from[F64](args(1)?.eval(s, ms).value as F64)
+          Atom(l.slice(index, iend))
+        else Atom(l(index)) end
+      else v end
+    else v end
+
   fun str(): VFunction val =>
     VFunction.template({
     (s': Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
@@ -251,7 +263,11 @@ primitive VellangStd
         let name = args(0)?.eval(s.clone(), ms.clone()).string()
         let fun_args = args.slice(1)
         let func = try ms.functions(name.clone())?
-        else return s(name.clone())?.eval(s, ms) end
+        else
+          let fun_args_cloned = recover Array[Variable](fun_args.size()) end
+          for v in fun_args.values() do fun_args_cloned.push(v) end
+          return VellangStd.apply_struct(s(name.clone())?.eval(s, ms), consume fun_args_cloned, s, ms)
+        end
         let arg_names = func._1.split_by(" ")
 
         var i: USize = 0

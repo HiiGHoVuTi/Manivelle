@@ -18,6 +18,9 @@ class VList
   fun apply(idx: USize): AtomValue =>
     try inner(idx)? else Error("Can't find index " + idx.string()) end
 
+  fun slice(start: USize, iend: USize): VList val =>
+    VList(recover inner.slice(start, iend) end)
+
   fun string(): String iso^ =>
     "(: " + " ".join(inner.values()) + " )"
 

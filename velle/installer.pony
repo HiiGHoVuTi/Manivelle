@@ -47,7 +47,7 @@ class Install
     //util.copy("velle", folders._1, folders._2
     //where other_name = alias, callback = callback)
     ifdef linux or bsd then
-      @system(("sudo cp ./build/release/velle" + " " + dest + "/" + alias).cstring())
+      @system(("sudo cp -rf ./build/release/velle" + " " + dest + "/" + alias).cstring())
     end
 
     let alias' = ifdef windows then

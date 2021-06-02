@@ -12,7 +12,7 @@ primitive VellangStd
       | let v: String => v == (v2 as String)
       | let v: Bool   => v == (v2 as Bool)
       | let v: F64    => (v - (v2 as F64)).abs() < 0.001
-      //| let v: VList val  => v == (v2 as VList val)
+      | let v: VList val  => v == (v2 as VList val)
       | let v: Error val  => false
       end
     else false end
@@ -421,6 +421,38 @@ primitive VellangStd
       Executor(":",args, ev)
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
-      // ...
-      Atom(Error("Not Implemented."))
+      let out = recover Array[AtomValue](args.size()) end
+      for arg in args.values() do
+        out.push(arg.eval(s, ms).value)
+      end
+      Atom(VList(consume out))
+    }val)
+
+  fun cat(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor("&cat",args, ev)
+    }val, {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      let out = recover Array[VList val](args.size()) end
+      for arg in args.values() do
+        try
+          let v = arg.eval(s, ms).value as VList val
+          out.push(v)
+        end
+      end
+      Atom(VList.concat(consume out))
+    }val)
+
+  fun idx(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor("idx",args, ev)
+    }val, {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        let index = USize.from[F64](args(1)?.eval(s, ms).value as F64)
+        let indexable = args(0)?.eval(s, ms).value as VList val
+        Atom(indexable(index))
+      else Atom(Error("Uh oh, can't find index")) end
     }val)

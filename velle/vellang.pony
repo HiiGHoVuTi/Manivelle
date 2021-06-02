@@ -111,7 +111,7 @@ primitive VTerms  is peg.Label fun text(): String => "Terms"
 
 /* ======== TYPEEEES ========= */
 
-type VCollection is (String)
+type VCollection is (VList val)
 
 class Error is Stringable
   let message: String
@@ -223,6 +223,9 @@ class VellangRunner
   .> update("do",           VellangStd.do_seq())
   .> update("if",           VellangStd.if_stmt())
   .> update("match-case",   VellangStd.match_case())
+  .> update(":",            VellangStd.list()) .> update("list", VellangStd.list())
+  .> update("&cat",         VellangStd.cat())
+  .> update("idx",          VellangStd.idx())
 
   new create(env': Env) => env = env'
 

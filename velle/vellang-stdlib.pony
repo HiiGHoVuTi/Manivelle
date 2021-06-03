@@ -13,6 +13,7 @@ primitive VellangStd
       | let v: Bool   => v == (v2 as Bool)
       | let v: F64    => (v - (v2 as F64)).abs() < 0.001
       | let v: VList val  => v == (v2 as VList val)
+      | let v: RecoveredFunction val => false
       | let v: Error val  => false
       end
     else false end
@@ -28,6 +29,40 @@ primitive VellangStd
         else Atom(l(index)) end
       else v end
     else v end
+
+  fun function_call(args: VarList, s: Scope, ms: MetaScope): Atom val? =>
+    let passed_scope = s.clone()
+    let passed_ms = ms.clone()
+    let name = args(0)?.eval(s.clone(), ms.clone()).string()
+    let fun_args = args.slice(1)
+    let func = try ms.functions(name.clone())?
+    else
+      let fun_args_cloned = recover Array[Variable](fun_args.size()) end
+      for v in fun_args.values() do fun_args_cloned.push(v) end
+      return VellangStd.apply_struct(s(name.clone())?
+        .eval(passed_scope, ms.clone()),
+          consume fun_args_cloned, passed_scope, ms.clone())
+    end
+
+    recovered_call(fun_args, RecoveredFunction(func._1, func._2), passed_scope, passed_ms)
+
+  fun recovered_call(args: VarList ref, f: RecoveredFunction val, s: Scope, ms: MetaScope): Atom val =>
+    let arg_names = f.inner._1.split_by(" ")
+
+    var i: USize = 0
+    while true do
+      try
+        let key = arg_names(i)?
+        let value = args(i)?.eval(s.clone(), ms.clone())
+        try
+          ms.functions(key) =
+            (value.value as RecoveredFunction val).inner
+        else s(key) = value end
+        i = i + 1
+      else break end
+    end
+    f.inner._2.eval(s, ms)
+
 
   fun str(): VFunction val =>
     VFunction.template({
@@ -258,30 +293,7 @@ primitive VellangStd
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       try
-        let passed_scope = s.clone()
-        let name = args(0)?.eval(s.clone(), ms.clone()).string()
-        let fun_args = args.slice(1)
-        let func = try ms.functions(name.clone())?
-        else
-          // @printf((name.clone() + "\n").cstring())
-          let fun_args_cloned = recover Array[Variable](fun_args.size()) end
-          for v in fun_args.values() do fun_args_cloned.push(v) end
-          return VellangStd.apply_struct(s(name.clone())?
-            .eval(passed_scope, ms.clone()),
-              consume fun_args_cloned, passed_scope, ms.clone())
-        end
-        let arg_names = func._1.split_by(" ")
-
-        var i: USize = 0
-        while true do
-          try
-            let key = arg_names(i)?
-            let value = fun_args(i)?.eval(s.clone(), ms.clone())
-            passed_scope(key) = value
-            i = i + 1
-          else break end
-        end
-        func._2.eval(passed_scope, ms.clone())
+        VellangStd.function_call(args, s, ms)?
       else
         Atom(Error("Couldn't call the function"))
       end
@@ -294,26 +306,36 @@ primitive VellangStd
     }val, {
     (s: Scope, args: VarList, ms: MetaScope) =>
       try
-        let passed_scope = s.clone()
-        let name = args(0)?.eval(s.clone(), ms.clone()).string()
-        let fun_args = args.slice(1)
-        let func = ms.functions(consume name)?
-        let arg_names = func._1.split_by(" ")
-
-        var i: USize = 0
-        while true do
-          try
-            let key = arg_names(i)?
-            let value = fun_args(i)?
-            passed_scope(key) = value
-            i = i + 1
-          else break end
-        end
-        func._2.eval(passed_scope, ms.clone())
+        VellangStd.function_call(args, s, ms)?
       else
         Atom(Error("Couldn't call the function"))
       end
     }val)
+
+  fun vrecover(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor("recover", args, ev)
+    }val, {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        Atom(RecoveredFunction.from_fn(ms.functions(args(0)?.eval(s, ms).string())?))
+      else Atom(Error("Couldn't recover function.")) end
+    }val)
+
+  fun lambda(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor("λ", args, ev)
+    }val, {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        let arg_string = args(0)?.eval(s, ms).string()
+        let expression = args(1)? as Executor val
+        Atom(RecoveredFunction(consume arg_string, expression))
+      else Atom(Error("invalid λ formation")) end
+    }val)
+
 
   fun do_seq(): VFunction val =>
     VFunction.template({
@@ -473,4 +495,43 @@ primitive VellangStd
         let indexable = args(0)?.eval(s, ms).value as VList val
         Atom(indexable(index))
       else Atom(Error("Uh oh, can't find index")) end
+    }val)
+
+  fun map(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor("map",args, ev)
+    }val, {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        let f = args(0)?.eval(s, ms).value as RecoveredFunction val
+        let x = args(1)?.eval(s, ms).value as VList val
+
+        let out = recover Array[AtomValue](args.size()) end
+        for value in x.inner.values() do
+          out.push(VellangStd.recovered_call([Atom(value)], f, s, ms).value)
+        end
+        Atom(VList(consume out))
+      else Atom(Error("Couldn't map over sequence")) end
+    }val)
+
+  fun filter(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor("filter",args, ev)
+    }val, {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        let f = args(0)?.eval(s, ms).value as RecoveredFunction val
+        let x = args(1)?.eval(s, ms).value as VList val
+
+        let out = recover Array[AtomValue](args.size()) end
+        for value in x.inner.values() do
+          if VellangStd.recovered_call([Atom(value)], f, s, ms)
+          .value as Bool then
+            out.push(value)
+          end
+        end
+        Atom(VList(consume out))
+      else Atom(Error("Couldn't filter sequence")) end
     }val)

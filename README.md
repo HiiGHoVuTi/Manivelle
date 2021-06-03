@@ -80,7 +80,7 @@ These two commands will let you create the proper folder and scripts for velle. 
 
 (echo (s: Hello World !)) ; if provided multiple Words, echo will join them with a space
 
-(def greeting Hello)
+(var greeting Hello)
 
 (echo (&
     greeting

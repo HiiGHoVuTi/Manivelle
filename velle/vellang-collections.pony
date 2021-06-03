@@ -1,4 +1,13 @@
 
+class RecoveredFunction
+  let inner: (String, Executor val)
+  new val create(s: String, e: Executor val) =>
+    inner = (s, e)
+  new val from_fn(v': (String, Executor val)) =>
+    inner = v'
+  fun string(): String iso^ =>
+    "(Function (& " + inner._1.clone() + "))"
+
 class VList
   let inner: Array[AtomValue]val
   new val create(v': Array[AtomValue]val) =>

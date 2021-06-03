@@ -111,7 +111,7 @@ primitive VTerms  is peg.Label fun text(): String => "Terms"
 
 /* ======== TYPEEEES ========= */
 
-type VCollection is (VList val)
+type VCollection is (RecoveredFunction val | VList val)
 
 class Error is Stringable
   let message: String
@@ -200,10 +200,12 @@ class VellangRunner
 
   fun get_functions(): Map[String, VFunction val]ref =>
   Map[String, VFunction val].create()
-  .> update("def",          VellangStd.def_var())
+  .> update("var",          VellangStd.def_var())
   .> update("val",          VellangStd.val_var())
   .> update("defun",        VellangStd.defun())
   .> update("call",         VellangStd.call())
+  .> update("recover",      VellangStd.vrecover())
+  .> update("lambda",       VellangStd.lambda()) .> update("ld", VellangStd.lambda())
   .> update("string",       VellangStd.str()) .> update("s:", VellangStd.str()) .> update("&", VellangStd.str())
   .> update("error",        VellangStd.err())
   .> update("dbg",          VellangStd.dbg())
@@ -226,6 +228,8 @@ class VellangRunner
   .> update(":",            VellangStd.list()) .> update("list", VellangStd.list())
   .> update("&cat",         VellangStd.cat())
   .> update("idx",          VellangStd.idx())
+  .> update("map",          VellangStd.map())
+  .> update("filter",       VellangStd.filter())
 
   new create(env': Env) => env = env'
 

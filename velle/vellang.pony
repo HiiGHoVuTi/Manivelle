@@ -230,6 +230,7 @@ class VellangRunner
   .> update("idx",          VellangStd.idx())
   .> update("map",          VellangStd.map())
   .> update("filter",       VellangStd.filter())
+  .> update("&join",        VellangStd.join())
 
   new create(env': Env) => env = env'
 
@@ -257,7 +258,10 @@ class VellangRunner
   fun eval_token(tok: peg.Token): Atom val =>
     let fmt = tok.string()
     try Atom(fmt.f64()?)
-    else Atom(consume fmt) end
+    else match fmt
+    | "\\" => Atom(" ")
+    | "\\\\" => Atom("\\")
+    else Atom(consume fmt) end end
 
   fun make_variable(branch: peg.ASTChild): Variable =>
     match branch

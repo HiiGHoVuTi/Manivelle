@@ -535,3 +535,17 @@ primitive VellangStd
         Atom(VList(consume out))
       else Atom(Error("Couldn't filter sequence")) end
     }val)
+
+  fun join(): VFunction val =>
+    VFunction.template({
+    (s: Scope, ev: Evaluator val, args: VarList, ms: MetaScope) =>
+      Executor("&join",args, ev)
+    }val, {
+    (s: Scope, args: VarList, ms: MetaScope) =>
+      try
+        let str = args(0)?.eval(s, ms).string()
+        let list = args(1)?.eval(s, ms).value as VList val
+        let fmt = (consume str).join(list.inner.values())
+        Atom(consume fmt)
+      else Atom(Error("Couldn't join sequence")) end
+    }val)
